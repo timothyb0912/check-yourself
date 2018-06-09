@@ -1,0 +1,72 @@
+\documentclass[preprint]{elsarticle}
+
+\pdfoutput=1                   % for ensuring arxiv uses pdflatex
+
+\usepackage{hyperref}    % for making the table of contents clickable
+\hypersetup{linktoc=all}
+
+\usepackage{titlesec}     % for changing the format of my titles
+\usepackage[titletoc]{appendix}    % for adding nice appendix title to the table of contents
+
+\titleformat{\paragraph}
+{\normalfont\normalsize\itshape}{\theparagraph}{1em}{}
+\titlespacing*{\paragraph}
+{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex} % To get a usuable paragraph command
+
+\usepackage{graphicx}    % for handling figures in the document
+
+\usepackage{tabularx}    % for handling tables with variable width columns and text wrapping
+\usepackage{tabulary}     % for handling tables with variable width columns and text wrapping
+
+\usepackage{array}
+\newcolumntype{K}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}    %for having a single variable width column
+
+\usepackage{booktabs}    % for making tables pretty
+\usepackage[justification=centering]{caption}
+
+\usepackage[font=normalsize, skip=5pt]{caption}    % for customizing captions
+
+\usepackage{amsmath}   % for math environments
+\usepackage{amssymb}   % for special math symbols
+
+\usepackage{color, soul}    % for highlighting
+
+%\usepackage[round,
+%				    authoryear,
+%				    colon]{natbib}    %for the bibliography
+%\bibliographystyle{plainnat}
+\bibliographystyle{elsarticle-harv}
+\biboptions{round, semicolon, authoryear}
+
+\usepackage{url}    %for handling of urls in bibtex file
+\def\UrlBreaks{\do\/\do-}    %use to break urls at hyphens
+
+\usepackage{pdflscape}    % for landscape orientation of pages
+
+\usepackage{verbatim}    % for multi-line comments
+
+\usepackage[margin=1in]{geometry}    % to get 1-inch margins
+
+\usepackage{todonotes}    % For adding notes to the margin
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Check yourself before you wreck yourself: \\Assessing discrete choice models through predictive simulations}
+
+\author[tbrathwaite]{Timothy Brathwaite\corref{cor1}}
+\ead{timothyb0912@gmail.com}
+
+\cortext[cor1]{Corresponding Author}
+
+\address[tbrathwaite]{Lyft Inc.\\ 185 Berry Street, Suite 5000, San Francisco, CA, 94107}
+
+
+\begin{keyword}
+Model Checking \sep Predictive Simulations \sep Discrete Choice \sep Posterior Predictive Checks \sep Underfitting \sep Plots
+\end{keyword}
+
+\end{frontmatter}
+
+\end{document}

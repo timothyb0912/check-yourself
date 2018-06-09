@@ -1,0 +1,31 @@
+\documentclass[preprint]{elsarticle}
+
+\usepackage[margin=1in]{geometry}    % to get 1-inch margins
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Check yourself before you wreck yourself: \\Assessing discrete choice models through predictive simulations}
+
+\author[tbrathwaite]{Timothy Brathwaite\corref{cor1}}
+\ead{timothyb0912@gmail.com}
+
+\cortext[cor1]{Corresponding Author}
+
+\address[tbrathwaite]{Lyft Inc.\\ 185 Berry Street, Suite 5000, San Francisco, CA, 94107}
+
+
+\begin{keyword}
+Model Checking \sep Predictive Simulations \sep Discrete Choice \sep Posterior Predictive Checks \sep Underfitting \sep Plots
+\end{keyword}
+
+\end{frontmatter}
+
+\section{Statement of Contribution and Potential Impact}
+Typically, discrete choice modelers develop ever-more advanced models and estimation methods. Compared to the impressive progress in model development and estimation, model-checking techniques have lagged behind. Often, choice modelers use only crude methods to assess how well an estimated model represents reality. Such methods usually stop at checking parameter signs, model elasticities, and ratios of model coefficients. In this paper, I greatly expand the discrete choice modelers' assessment toolkit by introducing model checking procedures based on graphical displays of predictive simulations. 
+
+Overall, my contributions are as follows. Methodologically, I introduce a general and `semi-automatic' algorithm for checking discrete choice models via predictive simulations. By combining new graphical displays with existing plots, I introduce methods for checking one's data against one's model in terms of the model's predicted distributions of $P \left( Y \right)$, $P \left( Y \mid X \right)$, and $P \left( X \mid Y \right)$. Empirically, I demonstrate my proposed methods by checking the models from Brownstone and Train (1998). Through this case study, I show that my proposed methods can point out lack-of-model-fit in one's models and suggest concrete model improvements that substantively change the results of one's policy analysis. Moreover, the case study highlights a practical trade-off between precision and robustness in model checking.
+
+
+\end{document}
