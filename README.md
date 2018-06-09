@@ -56,7 +56,8 @@ Project Organization
     │   ├── __init__.py    <- Makes src a Python module
     │   │
     │   ├── data           <- Scripts to download or generate data
-    │   │   └── make_dataset.py
+    │   │   ├── get_car_data.R
+    │   │   └── convert_car_data_from_wide_to_long.py
     │   │
     │   ├── features       <- Scripts to turn raw data into modeling features
     │   │   └── build_features.py
@@ -68,7 +69,7 @@ Project Organization
     │   │
     │   └── visualization  <- Scripts to create exploratory and results
     │                         oriented visualizations
-    │       └── visualize.py
+    │       └── predictive_viz.py
     │
     └── tox.ini            <- tox settings file; see tox.testrun.org
 
