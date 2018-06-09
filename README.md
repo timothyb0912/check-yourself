@@ -3,6 +3,12 @@ Check Yourself Before You Wreck Yourself: Assessing Discrete Choice Models Throu
 
 A case study in discrete choice model assessment with predictive simulations.
 
+This repository contains the replication data and code for
+
+    Brathwaite, Timothy. "Check yourself before you wreck yourself: Assessing
+    discrete choice models through predictive simulations" arXiv preprint
+    arXiv:1806.02307 (2018). https://arxiv.org/abs/1806.02307.
+
 Project Organization
 ------------
 
