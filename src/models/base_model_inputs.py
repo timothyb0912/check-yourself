@@ -6,4 +6,4 @@ pytorch models for the project.
 
 class InputMixl(object):
     def __init__(self, *args):
-        raise NotImplementedError()
+        return None
