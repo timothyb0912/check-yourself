@@ -32,7 +32,8 @@ warnings.filterwarnings("ignore")
 # -
 
 # reading the data file 
-data_01 = pd.read_csv("Air_Travel_Survey.csv",sep=",")
+data_path = '../data/raw/Air_Travel_Survey.csv'
+data_01 = pd.read_csv(data_path, sep=",")
 
 #look at the columns and the data
 data_01.columns
@@ -127,11 +128,7 @@ data_long = pl.convert_wide_to_long(data_01,
                                     choice_column,
                                     new_alt_id_name=custom_alt_id)
 # Look at the resulting long-format dataframe
-data_long.head(10)
-
-data_01.head(1)
-
-data_long.head(2)
+data_long.head(5).T
 
 # ## Step 2: Variable creations and transformations
 
@@ -190,21 +187,19 @@ basic_names["fare_100$"] = ['Fare, units:hundredth Alternative 1',
 
 # ## Now! Let's estimate the model and show the results
 
-# +
 # Estimate the binary logit model (
-air_travel_logit = pl.create_choice_model(data=data_long,
-                                        alt_id_col=custom_alt_id,
-                                        obs_id_col=obs_id_column,
-                                        choice_col=choice_column,
-                                        specification=basic_specification,
-                                        model_type="MNL",
-                                        names=basic_names)
+air_travel_logit =\
+    pl.create_choice_model(data=data_long,
+                           alt_id_col=custom_alt_id,
+                           obs_id_col=obs_id_column,
+                           choice_col=choice_column,
+                           specification=basic_specification,
+                           model_type="MNL",
+                           names=basic_names)
 
 # Specify the initial values and method for the optimization.
-air_travel_logit.fit_mle(np.zeros(4)) # 4 being the total number of parameters to be estimated
-
-
-# -
+# 4 being the total number of parameters to be estimated
+air_travel_logit.fit_mle(np.zeros(4))
 
 # Look at the estimation results
 air_travel_logit.get_statsmodels_summary()
