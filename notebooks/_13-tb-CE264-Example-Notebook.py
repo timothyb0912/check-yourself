@@ -40,8 +40,6 @@ data_01 = pd.read_csv(data_path, sep=",")
 #look at the columns and the data
 data_01.columns
 
-data_01.head(20)
-
 # ## Overview for binomial logit in python
 
 # ### Step 0: Load the data
@@ -294,6 +292,7 @@ air_travel_logit.fit_mle(initial_values)
 # Look at the estimation results
 air_travel_logit.get_statsmodels_summary()
 
+
 # # Prepare oneself for model checking
 #
 # To use the interactive model checking demonstration, there are two options.
@@ -301,13 +300,6 @@ air_travel_logit.get_statsmodels_summary()
 # 1. Students can clone or download the `ce264_march10th_2020` branch of the `check-yourself` github repo, place their notebook into this directory, and directly make use of the model checking functions in the `src.visiualization.predictive_viz` module.
 #
 # 2. Students can copy the function below, run it locally on their computer, and upload the resulting file to Binder for use there.
-
-air_travel_logit.specification
-
-air_travel_logit.name_spec
-
-air_travel_logit.cov
-
 
 # +
 def make_directory_if_necessary(filename):
@@ -346,6 +338,15 @@ def package_model_for_binder(df, fitted_model, temp_dir='./temp'):
     # Save the estimated parameters
     param_path = os.path.join(temp_dir, 'params.csv')
     fitted_model.params.to_csv(param_path)
+    
+    # Save the alt_id_col, obs_id_col, and choice_col
+    col_dict =\
+        {'alt_id_col': fitted_model.alt_id_col,
+         'obs_id_col': fitted_model.obs_id_col,
+         'choice_col': fitted_model.choice_col}
+    col_dict_path = os.path.join(temp_dir, 'col_dict.json')
+    with open(col_dict_path, 'wb') as fpath:
+        json.dump(col_dict, fpath)
 
     # Save the model specification and name dictionaries
     spec_path = os.path.join(temp_dir, 'spec.json')
@@ -359,45 +360,6 @@ def package_model_for_binder(df, fitted_model, temp_dir='./temp'):
     # Zip the temporary directory
     shutil.make_archive('temp', 'zip', root_dir=temp_dir)
     return None
-
-def unpack_on_binder(zip_file_path, temp_dir='./temp'):
-    import os
-    import json
-    import shutil
-    import pandas as pd
-    from collections import OrderedDict
-
-    # Unpack the zip file to the temporary directory.
-    shutil.unpack_archive(zip_file_path, temp_dir)
-    # Load the needed objects from the temporary directory
-    cov_path = os.path.join(temp_dir, 'cov.csv')
-    cov_df = pd.read_csv(cov_path)
-
-    df_path = os.path.join(temp_dir, 'df.csv')
-    df = pd.read_csv(df_path)
-
-    param_path = os.path.join(temp_dir, 'params.csv')
-    params = pd.read_csv(param_path)
-
-    spec_path = os.path.join(temp_dir, 'spec.json')
-    with open(spec_path, 'rb') as f:
-        spec = json.load(f, object_pairs_hook=OrderedDict)
-
-    name_path = os.path.join(temp_dir, 'names.json')
-    with open(name_path, 'rb') as f:
-        name_spec = json.load(f, object_pairs_hook=OrderedDict)
-
-    # Package the loaded objects into a dictionary for return
-    results_dict =\
-        {'cov_df': cov_df,
-         'df': df,
-         'param_series': params,
-         'spec_dict': spec,
-         'name_spec_dict': name_spec}
-
-    # Return the created dictionary
-    return results_dict
-
 
 
 # -
