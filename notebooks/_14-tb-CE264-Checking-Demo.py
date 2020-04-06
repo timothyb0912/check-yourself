@@ -46,7 +46,7 @@ def unpack_on_binder(zip_file_path, temp_dir='./temp'):
 
     # Unpack the zip file to the temporary directory.
     with ZipFile(zip_file_path, 'r') as zipfile:
-        zipfile.extractall(temp_dir) 
+        zipfile.extractall(temp_dir)
 
     # Load the needed objects from the temporary directory
     cov_path = os.path.join(temp_dir, 'cov.csv')
@@ -75,7 +75,7 @@ def unpack_on_binder(zip_file_path, temp_dir='./temp'):
     # Convert all entries to strings
     new_name_spec = OrderedDict()
     for key, value in name_spec.items():
-        new_name_spec[str(key)] = map(lambda x: str(x), value)
+        new_name_spec[str(key)] = list(map(lambda x: str(x), value))
 
     # Save the alt_id_col, obs_id_col, and choice_col
     col_dict_path = os.path.join(temp_dir, 'col_dict.json')
