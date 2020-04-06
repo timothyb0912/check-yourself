@@ -37,11 +37,6 @@ from visualization import predictive_viz as viz
 
 # ## Define helper functions
 
-from zipfile import ZipFile
-
-ZipFile.
-
-
 def unpack_on_binder(zip_file_path, temp_dir='./temp'):
     import os
     import json
@@ -55,35 +50,48 @@ def unpack_on_binder(zip_file_path, temp_dir='./temp'):
 
     # Load the needed objects from the temporary directory
     cov_path = os.path.join(temp_dir, 'cov.csv')
-    cov_df = pd.read_csv(cov_path)
+    cov_df = pd.read_csv(cov_path, index_col=0)
 
     df_path = os.path.join(temp_dir, 'df.csv')
     df = pd.read_csv(df_path)
 
     param_path = os.path.join(temp_dir, 'params.csv')
-    params = pd.read_csv(param_path)
+    params =\
+        pd.read_csv(param_path,
+                    index_col=0,
+                    names=['value']).iloc[:, 0]
 
     spec_path = os.path.join(temp_dir, 'spec.json')
     with open(spec_path, 'rb') as f:
         spec = json.load(f, object_pairs_hook=OrderedDict)
+    # Convert all entries to strings
+    new_spec = OrderedDict()
+    for key, value in spec.items():
+        new_spec[str(key)] = value
 
     name_path = os.path.join(temp_dir, 'names.json')
     with open(name_path, 'rb') as f:
         name_spec = json.load(f, object_pairs_hook=OrderedDict)
+    # Convert all entries to strings
+    new_name_spec = OrderedDict()
+    for key, value in name_spec.items():
+        new_name_spec[str(key)] = map(lambda x: str(x), value)
 
     # Save the alt_id_col, obs_id_col, and choice_col
     col_dict_path = os.path.join(temp_dir, 'col_dict.json')
     with open(col_dict_path, 'rb') as f:
         col_dict = json.load(f)
+    # Convert all entries to strings
+    new_col_dict = {str(k): str(v) for k, v in col_dict.items()}
 
     # Package the loaded objects into a dictionary for return
     results_dict =\
         {'cov_df': cov_df,
          'df': df,
          'param_series': params,
-         'spec_dict': spec,
-         'name_dict': name_spec,
-         'col_dict': col_dict}
+         'spec_dict': new_spec,
+         'name_dict': new_name_spec,
+         'col_dict': new_col_dict}
 
     # Return the created dictionary
     return results_dict
@@ -112,22 +120,12 @@ mnl = pl.create_choice_model(data=df,
                              model_type='MNL',
                              names=estimation_results['name_dict'])
 
-print(np.round(pd.concat([car_mnl.params,
-                    car_mnl.standard_errors],
-                   axis=1),
-               decimals=3).to_latex())
-
-# # Replication Results
-#
-# The original modeling results have been replicated. To do so, I needed to change the vehicle fuel types in the mlogit data to correct a likely transcription error.
-
 # # MNL Model Checking
 
 # Simulate values from the sampling distribution of coefficients
-cov_matrix = np.linalg.inv(-1 * car_mnl.hessian)
 mnl_sampling_dist =\
-    scipy.stats.multivariate_normal(mean=car_mnl.params.values,
-                                    cov=cov_matrix)
+    scipy.stats.multivariate_normal(mean=estimated_params.values,
+                                    cov=estimated_cov_df.values)
 
 # Take Draws from the sampling distribution
 num_draws = 1000
@@ -138,13 +136,12 @@ simulated_coefs.shape
 # +
 # Predict the model probabilities
 simulated_probs =\
-    car_mnl.predict(car_df,
-                    param_list=[simulated_coefs.T, None, None, None])
+    mnl.predict(df, param_list=[simulated_coefs.T, None, None, None])
 
 # Simulate y from the sampling distribution
 likelihood_sim_y =\
     viz.simulate_choice_vector(simulated_probs,
-                               car_df['obs_id'].values,
+                               df[model_col_dict['obs_id_col']].values,
                                rseed=1122018)
 # -
 
@@ -160,13 +157,12 @@ reload(viz)
 
 sim_log_likes =\
     viz.compute_prior_predictive_log_likelihoods(likelihood_sim_y,
-                                                 car_df,
-                                                 "choices",
-                                                 car_mnl)
+                                                 df,
+                                                 model_col_dict['choice_col'],
+                                                 mnl)
 
-log_like_path = '../reports/figures/log-predictive-vehicle-choice-mnl.pdf'
 viz.plot_predicted_log_likelihoods(sim_log_likes,
-                                   car_mnl.llf,
+                                   mnl.llf,
                                    output_file=log_like_path)
 # -
 
