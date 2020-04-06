@@ -361,6 +361,8 @@ def package_model_for_binder(df, fitted_model, temp_dir='./temp'):
     return None
 
 def unpack_on_binder(zip_file_path, temp_dir='./temp'):
+    import os
+    import json
     import shutil
     import pandas as pd
     from collections import OrderedDict
@@ -375,15 +377,15 @@ def unpack_on_binder(zip_file_path, temp_dir='./temp'):
     df = pd.read_csv(df_path)
 
     param_path = os.path.join(temp_dir, 'params.csv')
-    params = pd.Series.from_csv(param_path)
+    params = pd.read_csv(param_path)
 
     spec_path = os.path.join(temp_dir, 'spec.json')
     with open(spec_path, 'rb') as f:
-        spec = json.loads(f, object_pairs_hook=OrderedDict)
+        spec = json.load(f, object_pairs_hook=OrderedDict)
 
     name_path = os.path.join(temp_dir, 'names.json')
     with open(name_path, 'rb') as f:
-        name_spec = json.loads(f, object_pairs_hook=OrderedDict)
+        name_spec = json.load(f, object_pairs_hook=OrderedDict)
 
     # Package the loaded objects into a dictionary for return
     results_dict =\
