@@ -120,6 +120,9 @@ mnl = pl.create_choice_model(data=df,
                              model_type='MNL',
                              names=estimation_results['name_dict'])
 
+# Recreate the predicted probabilities
+long_fitted_probs = mnl.predict(df, param_list=[estimated_params.values])
+
 # # MNL Model Checking
 
 # Simulate values from the sampling distribution of coefficients
@@ -197,8 +200,8 @@ reload(viz)
 current_fuel = 'methanol'
 filter_idx = np.where((car_df.fuel_type == current_fuel).values)[0]
 # current_probs = simulated_probs[filter_idx, :]
-current_probs = car_mnl.long_fitted_probs[filter_idx]
-current_choices = car_mnl.choices[filter_idx]
+current_probs = long_fitted_probs[filter_idx]
+current_choices = mnl.choices[filter_idx]
 current_sim_y = likelihood_sim_y[filter_idx, :]
 current_line_label = 'Observed vs Predicted ({})'.format(current_fuel)
 current_sim_label = 'Simulated vs Predicted ({})'.format(current_fuel)
@@ -282,7 +285,7 @@ viz.plot_categorical_predictive_densities(
     likelihood_sim_y,
     'cents_per_mile',
     filter_row,
-    car_mnl.choices,
+    mnl.choices,
     title=current_title.format('Regular Car'),
     filter_name='observations',
     post_color=sbn.color_palette('colorblind')[0],
@@ -386,8 +389,8 @@ for body in ['regcar', 'sportcar', 'stwagon', 'van', 'truck']:
 
 for body in ['regcar', 'sportcar', 'stwagon', 'van', 'truck']:
     filter_idx = (car_df.body_type == body).values
-    current_probs = car_mnl.long_fitted_probs[filter_idx]
-    current_choices = car_mnl.choices[filter_idx]
+    current_probs = long_fitted_probs[filter_idx]
+    current_choices = mnl.choices[filter_idx]
     current_sim_y = likelihood_sim_y[filter_idx, :]
     current_line_label = 'Observed vs Predicted ({})'.format(body)
     current_sim_label = 'Simulated vs Predicted ({})'.format(body)
@@ -411,8 +414,8 @@ for body in ['regcar', 'sportcar', 'stwagon', 'van', 'truck']:
 for fuel in ['cng', 'electric', 'gasoline']:
     current_fuel = fuel
     filter_idx = np.where((car_df.fuel_type == current_fuel).values)[0]
-    current_probs = car_mnl.long_fitted_probs[filter_idx]
-    current_choices = car_mnl.choices[filter_idx]
+    current_probs = long_fitted_probs[filter_idx]
+    current_choices = mnl.choices[filter_idx]
     current_sim_y = likelihood_sim_y[filter_idx, :]
     current_line_label = 'Observed vs Predicted ({})'.format(current_fuel)
     current_sim_label = 'Simulated vs Predicted ({})'.format(current_fuel)
