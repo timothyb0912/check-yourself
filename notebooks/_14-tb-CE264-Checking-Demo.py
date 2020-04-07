@@ -156,6 +156,7 @@ likelihood_sim_y =\
 
 import seaborn as sbn
 import matplotlib.pyplot as plt
+from imp import reload
 
 # ### 1. Predictive Performance (log-likelihood) plot
 
@@ -172,7 +173,28 @@ current_log_likelihood =\
     np.log(long_fitted_probs).dot(mnl.choices)
 
 viz.plot_predicted_log_likelihoods(sim_log_likes,
-                                   current_log_likelihood)
+                                   current_log_likelihood,
+                                   figsize=(10, 6))
+
+# Look at the predictive performance plots by alternative
+for alt in [1, 2]:
+    current_rows = (df['alternative_id'] == alt).values
+    filter_idx = np.where(current_rows)[0]
+
+    current_long_probs = long_fitted_probs[filter_idx]
+    current_long_probs_log = np.log(current_long_probs)
+
+    current_y = mnl.choices[filter_idx]
+    current_sim_y = likelihood_sim_y[filter_idx, :]
+
+    current_log_likelihood = current_y.dot(current_long_probs_log)
+    current_sim_log_likes = current_sim_y.T.dot(current_long_probs_log)
+
+    current_x_label = 'Log-Likelihoods for Alternative {}'.format(alt)
+    viz.plot_predicted_log_likelihoods(current_sim_log_likes,
+                                       current_log_likelihood,
+                                       x_label=current_x_label,
+                                       figsize=(10, 6))
 # -
 
 # ### 2. Market Share Boxplot
@@ -325,38 +347,34 @@ current_title = 'KDE of Fare for {}'.format(current_airline_text)
 viz.plot_simulated_kde_traces(likelihood_sim_y,
                               df,
                               filter_row,
-                              'price_over_log_income',
+                              'fare',
                               'choice',
-                              title=current_title.format(current_fuel),
+                              title=current_title,
                               figsize=(10, 6),
                               label='Simulated',
-                              n_traces=500,
-                              output_file=filename)
+                              n_traces=500)
 # -
 
 # ### 7. Simulated CDF
 
 # +
 reload(viz)
-current_body = 'sportuv'
-filter_row = car_df.body_type == current_body
-# current_title =\
-#     'CDF of Price/log(income) for Sport Utility Vehicles'
-current_title = ''
-# filename =\
-#     '../reports/figures/cdf-vehicle-choice-mnl-suv-price.pdf'
-filename =\
-    '../reports/figures/cdf-vehicle-choice-mnl-suv-price.jpeg'
+current_airline = 5  # southwest
+current_airline_text = airline_text_dict[current_airline]
+
+filter_row = df.airline == current_airline
+
+current_title =\
+    'CDF of Arrival Time for chosen {} flights'.format(current_airline_text)
 
 viz.plot_simulated_cdf_traces(likelihood_sim_y,
-                              car_df,
+                              df,
                               filter_row,
-                              'price_over_log_income',
+                              'arrival_time',
                               'choice',
                               label='Simulated',
                               title=current_title,
-                              figsize=(10, 6),
-                              output_file=filename)
+                              figsize=(10, 6))
 # -
 
 # ## Sandbox:
