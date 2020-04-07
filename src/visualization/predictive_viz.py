@@ -17,8 +17,9 @@ import statsmodels.api as sm
 # used to plot empirical CDFs
 import statsmodels.tools as sm_tools
 import statsmodels.distributions as sm_dist
-# Use the following to have python2 and python3 compatible type checks
+# Use the following to have python2 and python3 compatiblity
 from future.utils import string_types
+from past.builtins import xrange
 # Use set_trace to set debugging break points
 from pdb import set_trace as bp
 
