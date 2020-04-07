@@ -294,7 +294,7 @@ filter_row = ((df.airline == current_airline) &
 
 current_title =\
     'Num Observations Flying {airline} in {class_val}'.format(
-        airline=current_airline,
+        airline=current_airline_text,
         class_val=class_value_to_text_dict[current_class])
 
 viz.plot_categorical_predictive_densities(
