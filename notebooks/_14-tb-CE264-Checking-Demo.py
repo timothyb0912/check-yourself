@@ -121,7 +121,11 @@ mnl = pl.create_choice_model(data=df,
                              names=estimation_results['name_dict'])
 
 # Recreate the predicted probabilities
-long_fitted_probs = mnl.predict(df, param_list=[estimated_params.values])
+long_fitted_probs =\
+    mnl.predict(df,
+                param_list=[estimated_params.values, None, None, None])
+# Set this attribute on the model object
+setattr(mnl, 'long_fitted_probs', long_fitted_probs)
 
 # # MNL Model Checking
 
@@ -195,24 +199,31 @@ viz.plot_simulated_market_shares(df.airline.values,
 # -
 
 reload(viz)
+
+aircraft_type_dict =\
+    {1: 'widebody', 2: 'standard', 3: 'regional', 4: 'propeller'}
 viz.plot_simulated_market_shares(df.aircraft_type.values,
                                  likelihood_sim_y,
                                  mnl.choices,
                                  x_label='Aircraft Type',
-                                 y_label='Number\nof times\nchosen')
+                                 y_label='Number\nof times\nchosen',
+                                 display_dict=aircraft_type_dict)
 
 # ### 3. Binned Reliability Plot
 
 # +
 reload(viz)
 current_airline = 4  # jet_blue
+current_airline_text = airline_text_dict[current_airline]
 filter_idx = np.where((df.airline == current_airline).values)[0]
+
 # current_probs = simulated_probs[filter_idx, :]
 current_probs = long_fitted_probs[filter_idx]
 current_choices = mnl.choices[filter_idx]
 current_sim_y = likelihood_sim_y[filter_idx, :]
-current_line_label = 'Observed vs Predicted ({})'.format(current_airline)
-current_sim_label = 'Simulated vs Predicted ({})'.format(current_airline)
+
+current_line_label = 'Observed vs Predicted ({})'.format(current_airline_text)
+current_sim_label = 'Simulated vs Predicted ({})'.format(current_airline_text)
 
 current_sim_color = '#a6bddb'
 current_obs_color = '#045a8d'
@@ -220,6 +231,7 @@ current_obs_color = '#045a8d'
 viz.plot_binned_reliability(
     current_probs,
     current_choices,
+    partitions=70,
     sim_y=current_sim_y,
     line_label=current_line_label,
     line_color=current_obs_color,
@@ -233,6 +245,7 @@ viz.plot_binned_reliability(
 
 # +
 current_airline = 1  # american_airlines
+current_airline_text = airline_text_dict[current_airline]
 selection_idx = (df.airline == current_airline).values
 
 num_traces = 200
@@ -240,8 +253,6 @@ current_probs = simulated_probs[selection_idx]
 current_y = mnl.choices[selection_idx]
 current_x = df.loc[selection_idx, 'performance'].values
 current_sim_y = likelihood_sim_y[selection_idx]
-
-current_airline_text = airline_text_dict[current_airline]
 
 current_y_label = 'Observed P(Y={})'.format(current_airline_text)
 current_prob_label = 'Predicted P(Y={})'.format(current_airline_text)
@@ -259,8 +270,7 @@ viz.make_binned_marginal_model_plot(current_probs,
                                     sim_label=current_sim_label,
                                     x_label=current_x_label,
                                     alpha=0.5,
-                                    figsize=(10, 6),
-                                    output_file=filename)
+                                    figsize=(10, 6))
 # -
 
 # ### 5. Simulated Histogram
@@ -269,18 +279,23 @@ viz.make_binned_marginal_model_plot(current_probs,
 reload(viz)
 
 current_airline = 6  # united
+current_airline_text = airline_text_dict[current_airline]
+
 current_class = 4  # first class
-filter_row = ((df.airline == current_airline) &
-              (df.classTicket == current_class))
 class_value_to_text_dict =\
     {1: 'economy',
      2: 'premium',
      3: 'business',
      4: 'first_class'}
+current_class_text = class_value_to_text_dict[current_class]
+
+filter_row = ((df.airline == current_airline) &
+              (df.classTicket == current_class))
+
 current_title =\
-    'Num Observations Flying {airline} in {class}'.format(
-        airline=current_airline, class=class_value_to_text_dict[current_class]
-    )
+    'Num Observations Flying {airline} in {class_val}'.format(
+        airline=current_airline,
+        class_val=class_value_to_text_dict[current_class])
 
 viz.plot_categorical_predictive_densities(
     df,
@@ -300,15 +315,15 @@ viz.plot_categorical_predictive_densities(
 
 # +
 reload(viz)
-current_fuel = 'electric'
-filter_row = car_df.fuel_type == current_fuel
-# current_title = 'KDE of Price/log(income) for {} vehicles'
-current_title = ''
-filename =\
-    '../reports/figures/kde-vehicle-choice-mnl-electric-price.pdf'
+current_airline = 3  # delta
+current_airline_text = airline_text_dict[current_airline]
+
+filter_row = df.airline == current_airline
+
+current_title = 'KDE of Fare for {}'.format(current_airline_text)
 
 viz.plot_simulated_kde_traces(likelihood_sim_y,
-                              car_df,
+                              df,
                               filter_row,
                               'price_over_log_income',
                               'choice',
