@@ -153,7 +153,7 @@ likelihood_sim_y =\
 import seaborn as sbn
 import matplotlib.pyplot as plt
 
-# ### 1. Log-Likelihood plot
+# ### 1. Predictive Performance (log-likelihood) plot
 
 # +
 reload(viz)
@@ -164,62 +164,58 @@ sim_log_likes =\
                                                  model_col_dict['choice_col'],
                                                  mnl)
 
+current_log_likelihood =\
+    np.log(long_fitted_probs).dot(mnl.choices)
+
 viz.plot_predicted_log_likelihoods(sim_log_likes,
-                                   mnl.llf,
-                                   output_file=log_like_path)
+                                   current_log_likelihood)
 # -
 
-# ### 2. Outcome Boxplot
+# ### 2. Market Share Boxplot
 
 # +
 reload(viz)
-market_path = '../reports/figures/market-share-plot-vehicle-choice-mnl.pdf'
 
-market_dict = dict(cng='compressed_natural_gas')
+airline_text_dict =\
+    {1: 'american',
+     2: 'continental',
+     3: 'delta',
+     4: 'jet_blue',
+     5: 'southwest',
+     6: 'united',
+     7: 'us_airways',
+     8: 'other'}
 
-viz.plot_simulated_market_shares(car_df.fuel_type.values,
+viz.plot_simulated_market_shares(df.airline.values,
                                  likelihood_sim_y,
-                                 car_df.choice.values,
-                                 x_label='Fuel Type',
+                                 mnl.choices,
+                                 x_label='Airline',
                                  y_label='Number\nof times\nchosen',
-                                 display_dict=market_dict,
-                                 output_file=market_path)
+                                 display_dict=airline_text_dict)
 # -
 
 reload(viz)
-viz.plot_simulated_market_shares(car_df.body_type.values,
+viz.plot_simulated_market_shares(df.aircraft_type.values,
                                  likelihood_sim_y,
-                                 car_df.choice.values,
-                                 x_label='Body Type',
+                                 mnl.choices,
+                                 x_label='Aircraft Type',
                                  y_label='Number\nof times\nchosen')
 
 # ### 3. Binned Reliability Plot
 
 # +
 reload(viz)
-current_fuel = 'methanol'
-filter_idx = np.where((car_df.fuel_type == current_fuel).values)[0]
+current_airline = 4  # jet_blue
+filter_idx = np.where((df.airline == current_airline).values)[0]
 # current_probs = simulated_probs[filter_idx, :]
 current_probs = long_fitted_probs[filter_idx]
 current_choices = mnl.choices[filter_idx]
 current_sim_y = likelihood_sim_y[filter_idx, :]
-current_line_label = 'Observed vs Predicted ({})'.format(current_fuel)
-current_sim_label = 'Simulated vs Predicted ({})'.format(current_fuel)
+current_line_label = 'Observed vs Predicted ({})'.format(current_airline)
+current_sim_label = 'Simulated vs Predicted ({})'.format(current_airline)
 
 current_sim_color = '#a6bddb'
 current_obs_color = '#045a8d'
-
-# viz.plot_binned_reliability(
-#     current_probs,
-#     current_choices,
-#     sim_y=current_sim_y,
-#     line_label=current_line_label,
-#     line_color=current_obs_color,
-#     sim_label=current_sim_label,
-#     sim_line_color=current_sim_color,
-#     figsize=(10, 6),
-#     ref_line=True,
-#     output_file='../reports/figures/reliability-plot-vehicle-choice-mnl-methanol-point.pdf')
 
 viz.plot_binned_reliability(
     current_probs,
@@ -230,36 +226,38 @@ viz.plot_binned_reliability(
     sim_label=current_sim_label,
     sim_line_color=current_sim_color,
     figsize=(10, 6),
-    ref_line=True,
-    output_file='../reports/figures/reliability-plot-vehicle-choice-mnl-methanol-point.jpeg')
+    ref_line=True)
 # -
 
 # ###  4. Binned Marginal Model Plot
 
 # +
-current_body = 'sportuv'
-selection_idx = (car_df.body_type == current_body).values
+current_airline = 1  # american_airlines
+selection_idx = (df.airline == current_airline).values
 
-num_traces = 500
+num_traces = 200
 current_probs = simulated_probs[selection_idx]
-current_y = car_df.loc[selection_idx, 'choice'].values
-current_x = car_df.loc[selection_idx, 'price_over_log_income'].values
+current_y = mnl.choices[selection_idx]
+current_x = df.loc[selection_idx, 'performance'].values
 current_sim_y = likelihood_sim_y[selection_idx]
 
-# filename =\
-#     '../reports/figures/marginal-model-plot-vehicle-choice-mnl-suv.pdf'
-filename =\
-    '../reports/figures/marginal-model-plot-vehicle-choice-mnl-suv.jpeg'
+current_airline_text = airline_text_dict[current_airline]
+
+current_y_label = 'Observed P(Y={})'.format(current_airline_text)
+current_prob_label = 'Predicted P(Y={})'.format(current_airline_text)
+current_sim_label = 'Simulated P(Y={})'.format(current_airline_text)
+current_x_label =\
+    'Binned, Mean {} Performance'.format(current_airline_text)
 
 viz.make_binned_marginal_model_plot(current_probs,
                                     current_y,
                                     current_x,
-                                    partitions=10,
+                                    partitions=70,
                                     sim_y=current_sim_y,
-                                    y_label='Observed P(Y=SUV)',
-                                    prob_label='Predicted P(Y=SUV)',
-                                    sim_label='Simulated P(Y=SUV)',
-                                    x_label='Binned, Mean SUV Price / ln(income)',
+                                    y_label=current_y_label,
+                                    prob_label=current_prob_label,
+                                    sim_label=current_sim_label,
+                                    x_label=current_x_label,
                                     alpha=0.5,
                                     figsize=(10, 6),
                                     output_file=filename)
@@ -270,28 +268,32 @@ viz.make_binned_marginal_model_plot(current_probs,
 # +
 reload(viz)
 
-filter_row = ((car_df.body_type == 'regcar') &
-              (car_df.cents_per_mile == 2))
-# current_title = 'Num Observations by Cents per Mile for Body = {}'
-current_title = ''
-# filename =\
-#     '../reports/figures/histogram-vehicle-choice-mnl-regcar-operating-costs.pdf'
-filename =\
-    '../reports/figures/histogram-vehicle-choice-mnl-regcar-operating-costs.jpeg'
+current_airline = 6  # united
+current_class = 4  # first class
+filter_row = ((df.airline == current_airline) &
+              (df.classTicket == current_class))
+class_value_to_text_dict =\
+    {1: 'economy',
+     2: 'premium',
+     3: 'business',
+     4: 'first_class'}
+current_title =\
+    'Num Observations Flying {airline} in {class}'.format(
+        airline=current_airline, class=class_value_to_text_dict[current_class]
+    )
 
 viz.plot_categorical_predictive_densities(
-    car_df,
+    df,
     None,
     likelihood_sim_y,
-    'cents_per_mile',
+    'classTicket',
     filter_row,
     mnl.choices,
-    title=current_title.format('Regular Car'),
+    title=current_title,
     filter_name='observations',
     post_color=sbn.color_palette('colorblind')[0],
     figsize=(10, 6),
-    legend_loc='upper left',
-    output_file=filename)
+    legend_loc='upper left')
 # -
 
 # ### 6. Simulated KDE
