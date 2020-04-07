@@ -281,7 +281,7 @@ reload(viz)
 current_airline = 6  # united
 current_airline_text = airline_text_dict[current_airline]
 
-current_class = 4  # first class
+current_class = 2
 class_value_to_text_dict =\
     {1: 'economy',
      2: 'premium',
