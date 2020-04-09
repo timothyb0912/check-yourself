@@ -351,11 +351,11 @@ def package_model_for_binder(df, fitted_model, temp_dir='./temp'):
     # Save the model specification and name dictionaries
     spec_path = os.path.join(temp_dir, 'spec.json')
     with open(spec_path, 'w') as fpath:
-        json.dump(air_travel_logit.specification, fpath)
+        json.dump(fitted_model.specification, fpath)
 
     name_path = os.path.join(temp_dir, 'names.json')
     with open(name_path, 'w') as fpath:
-        json.dump(air_travel_logit.name_spec, fpath)
+        json.dump(fitted_model.name_spec, fpath)
 
     # Zip the temporary directory
     shutil.make_archive('temp', 'zip', root_dir=temp_dir)
