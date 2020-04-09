@@ -338,23 +338,23 @@ def package_model_for_binder(df, fitted_model, temp_dir='./temp'):
     # Save the estimated parameters
     param_path = os.path.join(temp_dir, 'params.csv')
     fitted_model.params.to_csv(param_path)
-    
+
     # Save the alt_id_col, obs_id_col, and choice_col
     col_dict =\
         {'alt_id_col': fitted_model.alt_id_col,
          'obs_id_col': fitted_model.obs_id_col,
          'choice_col': fitted_model.choice_col}
     col_dict_path = os.path.join(temp_dir, 'col_dict.json')
-    with open(col_dict_path, 'wb') as fpath:
+    with open(col_dict_path, 'w') as fpath:
         json.dump(col_dict, fpath)
 
     # Save the model specification and name dictionaries
     spec_path = os.path.join(temp_dir, 'spec.json')
-    with open(spec_path, 'wb') as fpath:
+    with open(spec_path, 'w') as fpath:
         json.dump(air_travel_logit.specification, fpath)
 
     name_path = os.path.join(temp_dir, 'names.json')
-    with open(name_path, 'wb') as fpath:
+    with open(name_path, 'w') as fpath:
         json.dump(air_travel_logit.name_spec, fpath)
 
     # Zip the temporary directory
