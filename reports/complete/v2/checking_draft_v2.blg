@@ -1,0 +1,47 @@
+This is BibTeX, Version 0.99d (TeX Live 2015)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: checking_draft_v2.aux
+The style file: elsarticle-harv.bst
+Database file #1: checking_draft_v2.bib
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+You've used 55 entries,
+            2990 wiz_defined-function locations,
+            976 strings with 14662 characters,
+and the built_in function-call counts, 34675 in all, are:
+= -- 2758
+> -- 1069
+< -- 43
++ -- 426
+- -- 359
+* -- 3618
+:= -- 4967
+add.period$ -- 165
+call.type$ -- 55
+change.case$ -- 391
+chr.to.int$ -- 55
+cite$ -- 55
+duplicate$ -- 2677
+empty$ -- 2750
+format.name$ -- 547
+if$ -- 6528
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 500
+newline$ -- 290
+num.names$ -- 222
+pop$ -- 962
+preamble$ -- 1
+purify$ -- 339
+quote$ -- 0
+skip$ -- 775
+stack$ -- 0
+substring$ -- 1780
+swap$ -- 1824
+text.length$ -- 2
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 474
+warning$ -- 0
+while$ -- 261
+width$ -- 0
+write$ -- 780
