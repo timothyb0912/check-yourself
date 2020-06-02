@@ -4,6 +4,10 @@ import torch
 import torch.nn as nn
 # Used to get sparse matrices
 import torch.sparse
+# Used for numeric computation
+import numpy as np
+# Used for type hinting
+from Typing import List
 
 
 class MIXLB(nn.Module):
@@ -26,3 +30,28 @@ class MIXLB(nn.Module):
         # Should specify the computational steps for calculating the
         # probability function corresponding to `Mixed Logit B`.
         raise NotImplementedError()
+
+    def create_coef_tensor(
+        self,
+        design_2d: torch.Tensor,
+        rows_to_mixers: torch.sparse.FloatTensor,
+        normal_rvs_list: List[torch.Tensor]) -> torch.Tensor:
+        # Initialize the Tensor of coefficients to be created
+        # Should have shape
+        # (design_2d.shape[0], design_2d.shape[1], normal_rvs_list[0].shape[1])
+        coef_tensor = None
+
+        # Assign the values that are for coefficients not being integrated over
+
+        # Access the list of column indices corresponding to normally
+        # distributed coefficients.
+
+        # Assign coefficients for each of the 'normally distributed' variables
+
+        # Access the list of column indices corresponding to log-normally
+        # distributed coefficients
+
+        # Assign coefficients for each log-normally distributed variable.
+
+        # Return the final 3D coefficient Tensor.
+        return coef_tensor
