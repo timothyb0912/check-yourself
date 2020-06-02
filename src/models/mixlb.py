@@ -6,25 +6,38 @@ import torch.nn as nn
 import torch.sparse
 # Used for numeric computation
 import numpy as np
+# Use attrs for boilerplate free creation of classes
+import attr
 # Used for type hinting
 from Typing import List
 
 
+# eq=False enables nn.Module hashing and thereby internal C++ usage for pytorch
+# repr=False ensures we don't overwrite the nn.Module string representation.
+# For more info, see https://stackoverflow.com/questions/57291307/
+# pytorch-module-with-attrs-cannot-get-parameter-list
+@attr.s(eq=False, repr=False)
 class MIXLB(nn.Module):
-    def __init__(self):
-        """"
-        PyTorch implementation of `Mixed Logit B` in [1].
+    """"
+    PyTorch implementation of `Mixed Logit B` in [1].
 
-        References
-        ----------
-        [1] Brownstone, David, and Kenneth Train. "Forecasting new product
-        penetration with flexible substitution patterns." Journal of
-        econometrics 89.1-2 (1998): 109-129.
-        """
-        # Should store all needed information required to specifcy the
-        # computational steps needed to calculate the probability function
-        # corresponding to `Mixed Logit B`
-        return None
+    References
+    ----------
+    [1] Brownstone, David, and Kenneth Train. "Forecasting new product
+    penetration with flexible substitution patterns." Journal of
+    econometrics 89.1-2 (1998): 109-129.
+    """
+    # Should store all needed information required to specifcy the
+    # computational steps needed to calculate the probability function
+    # corresponding to `Mixed Logit B`
+
+    # Needed attributes:
+
+    def __attrs_post_init__(self):
+        # Make sure that we call the constructor method of nn.Module to
+        # initialize pytorch specific parameters, as they are not automatically
+        # initialized by attrs
+        super().__init__()
 
     def forward(self):
         # Should specify the computational steps for calculating the
