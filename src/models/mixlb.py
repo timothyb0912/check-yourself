@@ -12,6 +12,93 @@ import attr
 from Typing import List
 
 
+# List the parameter names for the design matrix columns
+DESIGN_COLUMN_NAMES =\
+    ["neg_price_over_log_income",
+     "range_over_100",
+     "neg_acceleration_over_10",
+     "top_speed_over_100",
+     "neg_pollution",
+     "vehicle_size_over_10",
+     "big_enough",
+     "luggage_space",
+     "neg_tens_of_cents_per_mile",
+     "station_availability",
+     "sports_utility_vehicle",
+     "sports_car",
+     "station_wagon",
+     "truck",
+     "van",
+     "electric",
+     "electric_commute_lte_5mi",
+     "electric_and_college",
+     "compressed_natural_gas",
+     "methanol",
+     "methanol_and_college",
+     "non_ev",
+     "non_cng",
+    ]
+
+DESIGN_TO_DISPLAY_DICT =\
+    dict([("neg_price_over_log_income", 'Neg Price over log(income)'),
+          ('range_over_100', 'Range (units: 100mi)'),
+          ("neg_acceleration_over_10", 'Neg Acceleration (units: 0.1sec)'),
+          ('top_speed_over_100', 'Neg Top speed (units: 0.01mph)'),
+          ("neg_pollution", 'Neg Pollution'),
+          ('vehicle_size_over_10', 'Size'),
+          ('big_enough', 'Big enough'),
+          ('luggage_space', 'Luggage space'),
+          ("neg_tens_of_cents_per_mile", 'Neg Operation cost'),
+          ('station_availability', 'Station availability'),
+          ('sports_utility_vehicle', 'Sports utility vehicle'),
+          ('sports_car', 'Sports car'),
+          ('station_wagon', 'Station wagon'),
+          ('truck', 'Truck'),
+          ('van', 'Van'),
+          ('electric', 'EV'),
+          ('electric_commute_lte_5mi', 'Commute < 5 & EV'),
+          ('electric_and_college', 'College & EV'),
+          ('compressed_natural_gas', 'CNG'),
+          ('methanol', 'Methanol'),
+          ('methanol_and_college', 'College & Methanol'),
+          ('non_ev', 'Non Electric-Vehicle'),
+          ('non_cng', 'Non Compressed Natural Gas')])
+
+MIXING_VARIABLES =\
+    ['neg_price_over_log_income',
+     'neg_acceleration_over_10',
+     'neg_pollution',
+     'neg_tens_of_cents_per_mile',
+     'range_over_100',
+     'top_speed_over_100',
+     'big_enough',
+     'station_availability',
+     'vehicle_size_over_10',
+     'luggage_space',
+     'non_ev',
+     'non_cng']
+
+@attr.s
+class DesignInfo(object):
+    # Need to know the various columns of the design matrix, in order.
+    column_names =\
+        attr.ib(init=False, default=list(DESIGN_TO_DISPLAY_DICT.keys()))
+    # Need to know the display names of the design matrix's index coefficients.
+    design_to_display_dict =\
+        attr.ib(init=False, default=DESIGN_TO_DISPLAY_DICT)
+    # Need to know, in order, columns with randomly distributed coefficients
+    mixing_variables = attr.ib(init=False, default=MIXING_VARIABLES)
+    # Need to know the number of columns with randomly distributed coefficients
+    num_mixing_vars = attr.ib(init=False, default=len(MIXING_VARIABLES))
+# Need to know which columns correspond to log-normally distributed variables
+# Need to know which columns correspond to normally distributed variables
+# Need to know the indices of the design columns with log-normal coefficients.
+# Need to know the indices of the design columns with normal coefficients.
+# Need to know the indices of the randomly distributed coefficients that are
+#   log-normal and normal, respectively
+    pass
+
+
 # eq=False enables nn.Module hashing and thereby internal C++ usage for pytorch
 # repr=False ensures we don't overwrite the nn.Module string representation.
 # For more info, see https://stackoverflow.com/questions/57291307/
@@ -43,6 +130,8 @@ class MIXLB(nn.Module):
     #     of standard deviation parameters
     #   - Should have a second validation function that makes sure all values
     #     in these two lists are < the length of parameter means.
+
+
 
     # Standard deviation constant for lognormally distributed values
     log_normal_std = attr.ib(init=False, default=0.8326)
