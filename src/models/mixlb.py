@@ -35,6 +35,7 @@ class MIXLB(nn.Module):
     # - Module parameter tensors:
     #   - parameter "means"
     #   - parameter "standard deviations"
+
     # - List denoting the design column indices for normal and lognormally
     #   distributed parameters
     #   - Should define a validation function that ensures that the length of
@@ -42,16 +43,30 @@ class MIXLB(nn.Module):
     #     of standard deviation parameters
     #   - Should have a second validation function that makes sure all values
     #     in these two lists are < the length of parameter means.
-    # - Standard deviation constant for lognormally distributed values
-    # - Generically needed constants for the model:
-    #   - number of alternatives
-    #   - number of design columns
-    # - Needed constants for numerical stability
-    #   - min_exponent_val (minimum value that should be exponentiated)
-    #   - max_exponent_val (maximum value that should be exponentiated)
-    #   - min_prob_value (minimum probability value before value looks like 0)
-    #   - max_prob_value (maximum probability value before value looks like 1)
-    #   - max_comp_value (maximum value before overflow is likely to occur)
+
+    # Standard deviation constant for lognormally distributed values
+    log_normal_std = attr.ib(init=False, default=0.8326)
+
+    ####
+    # Generically needed constants for the model
+    ####
+    num_alternatives = attr.ib(init=False, default=6)
+    num_design_columns = attr.ib(init=False, default=23)
+
+    ####
+    # Needed constants for numerical stability
+    ####
+    # Minimum and maximum value that should be exponentiated
+    min_exponent_val = attr.ib(init=False, default=-700)
+    max_exponent_val = attr.ib(init=False, default=700)
+    # Maximum computational value before overflow is likely.
+    max_comp_value = attr.ib(init=False, default=1e300)
+    # MNL models and generalizations only have probability = 1
+    # when the linear predictor = infinity
+    max_prob_value = attr.ib(init=False, default=1-1e16)
+    # MNL models and generalizations only have probability = 0
+    # when the linear predictor = -infinity
+    min_comp_value = attr.ib(init=False, default=1e-300)
 
     def __attrs_post_init__(self):
         # Make sure that we call the constructor method of nn.Module to
