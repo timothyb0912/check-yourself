@@ -32,6 +32,26 @@ class MIXLB(nn.Module):
     # corresponding to `Mixed Logit B`
 
     # Needed attributes:
+    # - Module parameter tensors:
+    #   - parameter "means"
+    #   - parameter "standard deviations"
+    # - List denoting the design column indices for normal and lognormally
+    #   distributed parameters
+    #   - Should define a validation function that ensures that the length of
+    #     the list of normally distributed random variables equals the number
+    #     of standard deviation parameters
+    #   - Should have a second validation function that makes sure all values
+    #     in these two lists are < the length of parameter means.
+    # - Standard deviation constant for lognormally distributed values
+    # - Generically needed constants for the model:
+    #   - number of alternatives
+    #   - number of design columns
+    # - Needed constants for numerical stability
+    #   - min_exponent_val (minimum value that should be exponentiated)
+    #   - max_exponent_val (maximum value that should be exponentiated)
+    #   - min_prob_value (minimum probability value before value looks like 0)
+    #   - max_prob_value (maximum probability value before value looks like 1)
+    #   - max_comp_value (maximum value before overflow is likely to occur)
 
     def __attrs_post_init__(self):
         # Make sure that we call the constructor method of nn.Module to
