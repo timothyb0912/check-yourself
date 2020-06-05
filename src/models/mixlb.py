@@ -79,7 +79,15 @@ MIXING_VARIABLES =\
      'non_cng']
 
 @attr.s
-class DesignInfo(object):
+class DesignInfoMixlB(object):
+    ####
+    # To do: Add validators to objects
+    #   - Should define a validation function that ensures that the length of
+    #     the list of normally distributed random variables equals the number
+    #     of standard deviation parameters
+    #   - Should have a second validation function that makes sure all values
+    #     in these two lists are < the length of parameter means.
+    ####
     # Need to know the various columns of the design matrix, in order.
     column_names =\
         attr.ib(init=False, default=list(DESIGN_TO_DISPLAY_DICT.keys()))
@@ -87,16 +95,27 @@ class DesignInfo(object):
     design_to_display_dict =\
         attr.ib(init=False, default=DESIGN_TO_DISPLAY_DICT)
     # Need to know, in order, columns with randomly distributed coefficients
-    mixing_variables = attr.ib(init=False, default=MIXING_VARIABLES)
-    # Need to know the number of columns with randomly distributed coefficients
-    num_mixing_vars = attr.ib(init=False, default=len(MIXING_VARIABLES))
-# Need to know which columns correspond to log-normally distributed variables
-# Need to know which columns correspond to normally distributed variables
-# Need to know the indices of the design columns with log-normal coefficients.
-# Need to know the indices of the design columns with normal coefficients.
-# Need to know the indices of the randomly distributed coefficients that are
-#   log-normal and normal, respectively
-    pass
+    mixing_variable_names = attr.ib(init=False, default=MIXING_VARIABLES)
+    # Which columns correspond to log-normally distributed variables?
+    lognormal_coef_names = attr.ib(init=False, default=MIXING_VARIABLES[:-4])
+    # Which columns correspond to normally distributed variables?
+    normal_coef_names = attr.ib(init=False, default=MIXING_VARIABLES[-4:])
+
+    def __attrs_post_init__(self):
+        # How many columns with randomly distributed coefficients are there?
+        self.num_mixing_vars = len(self.mixing_variable_names)
+        # Which design columns have log-normal coefficients?
+        self.lognormal_design_cols =\
+            [self.column_names.index(x) for x in self.lognormal_coefs]
+        # Which design columns have normal coefficients?
+        self.normal_design_cols =\
+            [self.column_names.index(x) for x in self.normal_coefs]
+        # What are the indices of the randomly distributed coefficients that
+        # are log-normal and normal, respectively?
+        self.lognormal_mixing_indices =\
+            [self.mixing_variable_names.index(x) for x in self.lognormal_coefs]
+        self.normal_mixing_indices =\
+            [self.mixing_variable_names.index(x) for x in self.normal_coefs]
 
 
 # eq=False enables nn.Module hashing and thereby internal C++ usage for pytorch
@@ -118,20 +137,9 @@ class MIXLB(nn.Module):
     # computational steps needed to calculate the probability function
     # corresponding to `Mixed Logit B`
 
-    # Needed attributes:
-    # - Module parameter tensors:
-    #   - parameter "means"
-    #   - parameter "standard deviations"
-
-    # - List denoting the design column indices for normal and lognormally
-    #   distributed parameters
-    #   - Should define a validation function that ensures that the length of
-    #     the list of normally distributed random variables equals the number
-    #     of standard deviation parameters
-    #   - Should have a second validation function that makes sure all values
-    #     in these two lists are < the length of parameter means.
-
-
+    # Info denoting the design columns, the indices for normal and lognormally
+    # distributed parameters, etc.
+    design_info = attr.ib(init=False, default=DesignInfoMixlB())
 
     # Standard deviation constant for lognormally distributed values
     log_normal_std = attr.ib(init=False, default=0.8326)
@@ -162,6 +170,14 @@ class MIXLB(nn.Module):
         # initialize pytorch specific parameters, as they are not automatically
         # initialized by attrs
         super().__init__()
+
+        # Needed paramters to the module:
+        # - Module parameter tensors:
+        #   - parameter "means"
+        #   - parameter "standard deviations"
+        means = nn.Parameter(torch.ones(len(self.design_info.column_names)))
+        std_deviations =\
+            nn.Parameter(torch.ones(self.design_info.num_mixing_vars))
 
     def forward(self):
         # Should specify the computational steps for calculating the
