@@ -1,3 +1,23 @@
+# -*- coding: utf-8 -*-
+"""
+Contains the PyTorch implementation of "Mixed Logit B" from
+
+Brownstone, David, and Kenneth Train. "Forecasting new product
+penetration with flexible substitution patterns." Journal of
+econometrics 89.1-2 (1998): 109-129.
+
+To Do:
+- Add validators to attributes in DesignInfoMixlB
+  - Should define a validation function that ensures that the length of
+    the list of normally distributed random variables equals the number
+    of standard deviation parameters
+  - Should have a second validation function that makes sure all values
+    in these two lists are < the length of parameter means.
+- Add unit tests for MIXLB methods:
+  - _get_std_deviation
+  - _get_generated_coefs
+  - create_coef_tensor
+"""
 # PyTorch is used for numeric computation and automatic differentiation
 import torch
 # Used to access various pytorch utilities
@@ -9,7 +29,7 @@ import numpy as np
 # Use attrs for boilerplate free creation of classes
 import attr
 # Used for type hinting
-from Typing import List
+from typing import List
 
 
 # List the parameter names for the design matrix columns
@@ -102,20 +122,15 @@ class DesignInfoMixlB(object):
     normal_coef_names = attr.ib(init=False, default=MIXING_VARIABLES[-4:])
 
     def __attrs_post_init__(self):
-        # How many columns with randomly distributed coefficients are there?
+        # How many columns have randomly distributed coefficients?
         self.num_mixing_vars = len(self.mixing_variable_names)
-        # Which design columns have log-normal coefficients?
-        self.lognormal_design_cols =\
-            [self.column_names.index(x) for x in self.lognormal_coefs]
-        # Which design columns have normal coefficients?
-        self.normal_design_cols =\
-            [self.column_names.index(x) for x in self.normal_coefs]
-        # What are the indices of the randomly distributed coefficients that
-        # are log-normal and normal, respectively?
-        self.lognormal_mixing_indices =\
-            [self.mixing_variable_names.index(x) for x in self.lognormal_coefs]
-        self.normal_mixing_indices =\
-            [self.mixing_variable_names.index(x) for x in self.normal_coefs]
+        # Which design columns correspond to the mixing variable names?
+        self.mixing_to_design_cols =\
+            {x: self.column_names.index(x) for x in self.mixing_variable_names}
+        # Map normally distributed coefficients names to their indices
+        self.mixing_to_normal_indices =\
+            dict(zip(self.normal_coef_names,
+                     range(len(self.normal_coef_names))))
 
 
 # eq=False enables nn.Module hashing and thereby internal C++ usage for pytorch
@@ -142,28 +157,28 @@ class MIXLB(nn.Module):
     design_info = attr.ib(init=False, default=DesignInfoMixlB())
 
     # Standard deviation constant for lognormally distributed values
-    log_normal_std = attr.ib(init=False, default=0.8326)
+    log_normal_std = attr.ib(init=False, default=torch.tensor(0.8326))
 
     ####
     # Generically needed constants for the model
     ####
-    num_alternatives = attr.ib(init=False, default=6)
-    num_design_columns = attr.ib(init=False, default=23)
+    num_alternatives = attr.ib(init=False, default=torch.tensor(6))
+    num_design_columns = attr.ib(init=False, default=torch.tensor(23))
 
     ####
     # Needed constants for numerical stability
     ####
     # Minimum and maximum value that should be exponentiated
-    min_exponent_val = attr.ib(init=False, default=-700)
-    max_exponent_val = attr.ib(init=False, default=700)
+    min_exponent_val = attr.ib(init=False, default=torch.tensor(-700))
+    max_exponent_val = attr.ib(init=False, default=torch.tensor(700))
     # Maximum computational value before overflow is likely.
-    max_comp_value = attr.ib(init=False, default=1e300)
+    max_comp_value = attr.ib(init=False, default=torch.tensor(1e300))
     # MNL models and generalizations only have probability = 1
     # when the linear predictor = infinity
-    max_prob_value = attr.ib(init=False, default=1-1e16)
+    max_prob_value = attr.ib(init=False, default=torch.tensor(1-1e16))
     # MNL models and generalizations only have probability = 0
     # when the linear predictor = -infinity
-    min_comp_value = attr.ib(init=False, default=1e-300)
+    min_comp_value = attr.ib(init=False, default=torch.tensor(1e-300))
 
     def __attrs_post_init__(self):
         # Make sure that we call the constructor method of nn.Module to
@@ -171,40 +186,81 @@ class MIXLB(nn.Module):
         # initialized by attrs
         super().__init__()
 
-        # Needed paramters to the module:
-        # - Module parameter tensors:
-        #   - parameter "means"
-        #   - parameter "standard deviations"
-        means = nn.Parameter(torch.ones(len(self.design_info.column_names)))
-        std_deviations =\
-            nn.Parameter(torch.ones(self.design_info.num_mixing_vars))
+        # Needed paramters tensors for the module:
+        #   - parameter "means" and "standard deviations"
+        self.means =\
+            nn.Parameter(torch.ones(len(self.design_info.column_names)))
+        self.std_deviations =\
+            nn.Parameter(torch.ones(len(self.design_info.normal_coef_names)))
 
     def forward(self):
         # Should specify the computational steps for calculating the
         # probability function corresponding to `Mixed Logit B`.
         raise NotImplementedError()
 
+    def _get_std_deviation(self, col_name: str) -> torch.Tensor:
+        if col_name in self.design_info.normal_coef_names:
+            mixing_position_idx =\
+                self.design_info.mixing_to_normal_indices[col_name]
+            return self.std_deviations[mixing_position_idx]
+        elif col_name in self.design_info.lognormal_coef_names:
+            return self.log_normal_std
+        else:
+            msg =\
+                ('`col_name`: {} MUST be in '.format(col_name) +
+                 '`self.design_info.mixing_variable_names`')
+            raise ValueError(msg)
+
+    def _get_generated_coefs(self,
+                             col_name: str,
+                             design_column_idx: int,
+                             std_deviation: torch.Tensor,
+                             current_rvs: torch.Tensor) -> torch.Tensor:
+        generated_coefs =\
+            self.means[design_column_idx] + std_deviation * current_rvs
+        if col_name in self.design_info.lognormal_coef_names:
+            generated_coefs =\
+                torch.exp(torch.clamp(generated_coefs,
+                                      self.min_exponent_val,
+                                      self.max_exponent_val))
+        return generated_coefs
+
     def create_coef_tensor(
         self,
         design_2d: torch.Tensor,
         rows_to_mixers: torch.sparse.FloatTensor,
         normal_rvs_list: List[torch.Tensor]) -> torch.Tensor:
-        # Initialize the Tensor of coefficients to be created
-        # Should have shape
+        # Determine the number of draws for each set of randomly drawn values
+        num_draws = normal_rvs_list[0].shape[1]
+        # Initialize the coefficients as if they were all homogenous. Shape =
         # (design_2d.shape[0], design_2d.shape[1], normal_rvs_list[0].shape[1])
-        coef_tensor = None
+        coef_shape = (design_2d.shape[0], design_2d.shape[1], num_draws)
+        coef_tensor =\
+            torch.ones(coef_shape) * self.means[None, :, None]
 
-        # Assign the values that are for coefficients not being integrated over
-
-        # Access the list of column indices corresponding to normally
-        # distributed coefficients.
-
-        # Assign coefficients for each of the 'normally distributed' variables
-
-        # Access the list of column indices corresponding to log-normally
-        # distributed coefficients
-
-        # Assign coefficients for each log-normally distributed variable.
+        # Assign the randomly distributed coefficients
+        for mixing_pos, col_name in self.design_info.mixing_variable_names:
+            # Get the design column and position in `normal_rvs_list`
+            design_column_idx =\
+                self.design_info.mixing_to_design_cols[col_name]
+            # Get the randomly distributed coefficient's standard deviation
+            current_std_deviation = self._get_std_deviation(col_name)
+            # Get the current standard normal randomly generated values
+            current_rvs = normal_rvs_list[mixing_pos]
+            # Get the 2D array of randomly generated coefficients, across all
+            # decision makers, and across all draws.
+            generated_coefs =\
+                self._get_generated_coefs(col_name,
+                                          design_column_idx,
+                                          std_deviation,
+                                          current_rvs)
+            # Get the 2D array of randomly generated coefficients, across all
+            # design matrix rows, and across all draws.
+            # shape = (design_2d.shape[0], num_draws)
+            generated_coefs_for_design =\
+                torch.sparse.mm(rows_to_mixers, generated_coefs)
+            # Assign the generated coefficients
+            coef_tensor[:, design_column_idx, :] = generated_coefs_for_design
 
         # Return the final 3D coefficient Tensor.
         return coef_tensor
