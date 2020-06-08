@@ -22,8 +22,11 @@ class InputMixlTests(unittest.TestCase):
         """
         model = MIXLB()
         func = model._get_std_deviation
-        func_args = ['neg_price_over_log_income', 'luggage_space']
-        expected_results = [model.log_normal_std, torch.tensor(1)]
+        func_args = ['neg_price_over_log_income',
+                     'luggage_space',
+                     'vehicle_size_over_10']
+        expected_results =\
+            [model.log_normal_std, torch.tensor(1), torch.tensor(0)]
 
 
         for column_name, expected_result in zip(func_args, expected_results):
