@@ -189,9 +189,11 @@ class MIXLB(nn.Module):
         # Needed paramters tensors for the module:
         #   - parameter "means" and "standard deviations"
         self.means =\
-            nn.Parameter(torch.ones(len(self.design_info.column_names)))
+            nn.Parameter(torch.ones(len(self.design_info.column_names),
+                                    dtype=torch.double))
         self.std_deviations =\
-            nn.Parameter(torch.ones(len(self.design_info.normal_coef_names)))
+            nn.Parameter(torch.arange(len(self.design_info.normal_coef_names),
+                                      dtype=torch.double))
 
     def forward(self):
         # Should specify the computational steps for calculating the
