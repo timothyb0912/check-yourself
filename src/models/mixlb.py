@@ -178,7 +178,7 @@ class MIXLB(nn.Module):
     max_prob_value = attr.ib(init=False, default=torch.tensor(1-1e16))
     # MNL models and generalizations only have probability = 0
     # when the linear predictor = -infinity
-    min_comp_value = attr.ib(init=False, default=torch.tensor(1e-300))
+    min_prob_value = attr.ib(init=False, default=torch.tensor(1e-300))
 
     def __attrs_post_init__(self):
         # Make sure that we call the constructor method of nn.Module to
@@ -195,10 +195,26 @@ class MIXLB(nn.Module):
             nn.Parameter(torch.arange(len(self.design_info.normal_coef_names),
                                       dtype=torch.double))
 
-    def forward(self):
-        # Should specify the computational steps for calculating the
-        # probability function corresponding to `Mixed Logit B`.
-        raise NotImplementedError()
+    def forward(self,
+                design_2d: torch.Tensor,
+                rows_to_obs: torch.sparse.FloatTensor,
+                rows_to_mixers: torch.sparse.FloatTensor,
+                normal_rvs_list: List[torch.Tensor]) -> torch.Tensor:
+        """
+        Computational the probabilities for `Mixed Logit B`.
+        """
+        # Get the coefficient tensor for all observations
+        coefficients =\
+            self.create_coef_tensor(design_2d, rows_to_mixers, normal_rvs_list)
+        # Compute the long-format systematic utilities for row and random draw.
+        systematic_utilities =\
+            self._calc_systematic_utilities(design_2d, coefficients)
+        # Compute the long-format probabilities for each row and random draw.
+        probabilities_per_draw =\
+            self._calc_probs_per_draw(systematic_utilities, rows_to_obs)
+        # Compute the long-format, average probabilities across draws.
+        average_probabilities = torch.mean(probabilities_per_draw, 1)
+        return average_probabilities
 
     def _get_std_deviation(self, col_name: str) -> torch.Tensor:
         """
@@ -262,10 +278,11 @@ class MIXLB(nn.Module):
         return generated_coefs
 
     def create_coef_tensor(
-        self,
-        design_2d: torch.Tensor,
-        rows_to_mixers: torch.sparse.FloatTensor,
-        normal_rvs_list: List[torch.Tensor]) -> torch.Tensor:
+            self,
+            design_2d: torch.Tensor,
+            rows_to_mixers: torch.sparse.FloatTensor,
+            normal_rvs_list: List[torch.Tensor]
+        ) -> torch.Tensor:
         """
         Creates a 3D tensor of coefficients. These coefficients are to be
         element-wise multiplied with the design matrix to calculate the
@@ -327,3 +344,34 @@ class MIXLB(nn.Module):
 
         # Return the final 3D coefficient Tensor.
         return coef_tensor
+
+    def _calc_systematic_utilities(self,
+                                   design_2d: torch.Tensor,
+                                   coefs: torch.Tensor) -> torch.Tensor:
+        sys_utilities =\
+            torch.sum(design_2d[:, :, None] * coefs, 1, dtype=torch.double)
+        safe_sys_utilities =\
+            torch.clamp(sys_utilities,
+                        self.min_exponent_val,
+                        self.max_exponent_val)
+        return safe_sys_utilities
+
+    def _calc_probs_per_draw(
+            self,
+            sys_utilities: torch.Tensor,
+            rows_to_obs: torch.sparse.FloatTensor
+        ) -> torch.Tensor:
+        # Compute exp(V)
+        exponentiated_sys_utilities = torch.exp(sys_utilities)
+        # Get denominators to compute probabilities. One row per observation.
+        denominators_by_obs =\
+            torch.sparse.mm(rows_to_obs.transpose(0, 1),
+                            exponentiated_sys_utilities)
+        # Convert denominators into a tensor of the same size as sys_utilities.
+        long_denominators = torch.sparse.mm(rows_to_obs, denominators_by_obs)
+        # Note we use clamp to guard against against zero probabilities.
+        long_probs =\
+            torch.clamp(exponentiated_sys_utilities / long_denominators,
+                        min=self.min_prob_value,
+                        max=self.max_prob_value)
+        return long_probs
