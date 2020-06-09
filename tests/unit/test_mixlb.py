@@ -34,7 +34,6 @@ class MixlBTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             func('fake_column')
-        return None
 
     def test_get_generated_coefs(self):
         """
@@ -61,7 +60,6 @@ class MixlBTests(unittest.TestCase):
         for args, expected_result in zip(func_args, expected_results):
             func_result = func(*args)
             self.assertTrue(torch.allclose(expected_result, func_result))
-        return None
 
     def test_create_coef_tensor(self):
         """
@@ -116,4 +114,49 @@ class MixlBTests(unittest.TestCase):
             func_result = func(*args)
             self.assertTrue(torch.allclose(expected_result, func_result))
 
-        return None
+    def test_calc_systematic_utilities(self):
+        # Create model object and set its dtype to double.
+        model = MIXLB()
+        model.double()
+        # Create the fake arguments
+        fake_design = torch.ones((3, 5), dtype=torch.double)
+        fake_coefs =\
+            (torch.arange(start=1, end=4, dtype=torch.double)[:, None, None] *
+             torch.ones((3, 5, 4), dtype=torch.double))
+        # Create / note the expected results
+        expected_result =\
+            (torch.tensor([5, 10, 15], dtype=torch.double)[:, None] *
+             torch.ones((3, 4), dtype=torch.double))
+        # Alias the function to be tested
+        func = model._calc_systematic_utilities
+        # Perform the desired test
+        func_result = func(fake_design, fake_coefs)
+        self.assertTrue(torch.allclose(expected_result, func_result))
+
+    def test_calc_probs_per_draw(self):
+        # Create model object and set its dtype to double.
+        model = MIXLB()
+        model.double()
+        # Create the fake arguments
+        fake_utilities =\
+            (torch.from_numpy(np.log(np.arange(start=1, stop=7)))
+                  .double()[:, None])
+        fake_mapping =\
+            torch.sparse.FloatTensor(
+                torch.LongTensor([[0, 1, 2, 3, 4, 5],
+                                  [0, 0, 0, 1, 1, 1]]),
+                torch.ones(6, dtype=torch.double),
+                torch.Size([6, 2]))
+        # Create / note the expected results
+        expected_result =\
+            torch.tensor([1 / 6,
+                          2 / 6,
+                          3 / 6,
+                          4 / 15,
+                          5 / 15,
+                          6 / 15], dtype=torch.double)[:, None]
+        # Alias the function to be tested
+        func = model._calc_probs_per_draw
+        # Perform the desired test
+        func_result = func(fake_utilities, fake_mapping)
+        self.assertTrue(torch.allclose(expected_result, func_result))
