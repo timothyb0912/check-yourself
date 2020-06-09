@@ -201,6 +201,19 @@ class MIXLB(nn.Module):
         raise NotImplementedError()
 
     def _get_std_deviation(self, col_name: str) -> torch.Tensor:
+        """
+        Parameters
+        ----------
+        col_name : str.
+            The name of the column whose coefficient is being treated as
+            randomly distributed across decision makers.
+
+        Returns
+        -------
+        std_deviation : scalar torch.Tensor
+            Denotes the current standard deviation of the normally or
+            log-normally distributed random variable.
+        """
         if col_name in self.design_info.normal_coef_names:
             mixing_position_idx =\
                 self.design_info.mixing_to_normal_indices[col_name]
@@ -217,6 +230,28 @@ class MIXLB(nn.Module):
                              design_column_idx: int,
                              std_deviation: torch.Tensor,
                              current_rvs: torch.Tensor) -> torch.Tensor:
+        """
+        Parameters
+        ----------
+        col_name : str.
+            The name of the column whose coefficient is being treated as
+            randomly distributed across decision makers.
+        design_column_idx : int.
+            The column index in the design matrix that matching `col_name`.
+        std_deviation : scalar torch.Tensor.
+            Denotes the standard deviation for the underlying normal random
+            variates that are to be transformed into the distribution being
+            assumed for the `col_name` coefficient.
+        current_rvs : 2D torch.Tensor.
+            Denotes the random variates for each decision maker (rows) and for
+            each draw per decision maker (columns).
+
+        Returns
+        -------
+        generated_coefs : 2D torch.Tensor.
+            Normally or log-normally (based on `col_name`) distributed
+            coefficients for each decision maker for each draw.
+        """
         generated_coefs =\
             self.means[design_column_idx] + std_deviation * current_rvs
         if col_name in self.design_info.lognormal_coef_names:
@@ -231,6 +266,32 @@ class MIXLB(nn.Module):
         design_2d: torch.Tensor,
         rows_to_mixers: torch.sparse.FloatTensor,
         normal_rvs_list: List[torch.Tensor]) -> torch.Tensor:
+        """
+        Creates a 3D tensor of coefficients. These coefficients are to be
+        element-wise multiplied with the design matrix to calculate the
+        systematic utilities for each draw from the distributions of the
+        randomly generated coefficients.
+
+        Parameters
+        ----------
+        design_2d : 2D torch.Tensor.
+            Denotes the design matrix whose coefficients are to be computed.
+        rows_to_mixers : 2D torch.sparse.FloatTensor.
+            Denotes the mapping between rows of `design_2d` and the
+            decision-makers the coefficients are randomly distributed over.
+        normal_rvs_list : list of 2D torch.Tensor.
+            Should have length `self.design_info.num_mixing_vars`. Each element
+            of the list should be of shape `(rows_to_mixers.size()[1],
+            num_draws)`. Each element should represent a draw from a standard
+            normal distribution.
+
+        Returns
+        -------
+        coef_tensor : 3D torch.Tensor.
+            Denotes the design coefficients for each decision maker and draw
+            from the random coeffient distributions, in a shape amenable to
+            element-wise multiplication with the design marix.
+        """
         # Determine the number of draws for each set of randomly drawn values
         num_draws = normal_rvs_list[0].shape[1]
         # Initialize the coefficients as if they were all homogenous. Shape =
@@ -240,7 +301,8 @@ class MIXLB(nn.Module):
             torch.ones(coef_shape) * self.means[None, :, None]
 
         # Assign the randomly distributed coefficients
-        for mixing_pos, col_name in self.design_info.mixing_variable_names:
+        mixing_var_iterable = enumerate(self.design_info.mixing_variable_names)
+        for mixing_pos, col_name in mixing_var_iterable:
             # Get the design column and position in `normal_rvs_list`
             design_column_idx =\
                 self.design_info.mixing_to_design_cols[col_name]
