@@ -18,18 +18,17 @@ To Do:
   - _get_generated_coefs
   - create_coef_tensor
 """
+# Used for type hinting
+from typing import List
+
 # PyTorch is used for numeric computation and automatic differentiation
 import torch
 # Used to access various pytorch utilities
 import torch.nn as nn
 # Used to get sparse matrices
 import torch.sparse
-# Used for numeric computation
-import numpy as np
 # Use attrs for boilerplate free creation of classes
 import attr
-# Used for type hinting
-from typing import List
 
 
 # List the parameter names for the design matrix columns
@@ -99,7 +98,10 @@ MIXING_VARIABLES =\
      'non_cng']
 
 @attr.s
-class DesignInfoMixlB(object):
+class DesignInfoMixlB:
+    """
+    Data storage class providing information about the design matrix for MIXLB.
+    """
     ####
     # To do: Add validators to objects
     #   - Should define a validation function that ensures that the length of
