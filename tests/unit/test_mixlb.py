@@ -10,7 +10,7 @@ import numpy as np
 from src.models.mixlb import MIXLB
 
 
-class InputMixlTests(unittest.TestCase):
+class MixlBTests(unittest.TestCase):
     """
     Unit test class for storing the various tests of the MIXLB class.
     """
@@ -61,4 +61,59 @@ class InputMixlTests(unittest.TestCase):
         for args, expected_result in zip(func_args, expected_results):
             func_result = func(*args)
             self.assertTrue(torch.allclose(expected_result, func_result))
+        return None
+
+    def test_create_coef_tensor(self):
+        """
+        Ensures that at least in the trivial case of random variates that are
+        all zeros, that we return the expected values. Not the strongest test,
+        but ensures the function can return results of the correct shape and,
+        at least trivially, indexes the column names correctly.
+        """
+        # Create model object and set its dtype to double.
+        model = MIXLB()
+        model.double()
+        # Extract needed information from the model.
+        num_design_columns = model.means.size()[0]
+        num_mixing_vars = model.design_info.num_mixing_vars
+        # Set needed constants for test argument creation
+        num_draws = 3
+        num_decision_makers = 2
+        # Alias the function being tested
+        func = model.create_coef_tensor
+        # Note the expected results for the test
+        # - coef_tensor of shape (2, num_predictors, 3 draws)
+        expected_results =\
+            [((torch.arange(num_design_columns,
+                            dtype=torch.double)[None, :] *
+               torch.ones(num_decision_makers)[:, None]
+               )[:, :, None] *
+              torch.ones(num_draws, dtype=torch.double)[None, None, :]
+             ),
+            ]
+        # Account for the lognormal coefficients
+        lognormal_indices =\
+            [model.design_info.mixing_to_design_cols[x] for x in
+             model.design_info.lognormal_coef_names]
+        expected_results[0][:, lognormal_indices, :] =\
+            torch.exp(expected_results[0][:, lognormal_indices, :])
+        # Create function arguments that should lead to the desired results.
+        fake_design =\
+            torch.ones((num_decision_makers, num_design_columns),
+                       dtype=torch.double)
+        # corresponds to an identity matrix of size 2x2
+        fake_mapping =\
+            torch.sparse.FloatTensor(torch.LongTensor([[0, 1], [0, 1]]),
+                                     torch.ones(2, dtype=torch.double),
+                                     torch.Size([2, 2]))
+        fake_rvs_list =\
+            [torch.zeros(num_decision_makers, num_draws, dtype=torch.double)
+             for x in range(num_mixing_vars)]
+        func_args =\
+            [(fake_design, fake_mapping, fake_rvs_list),]
+        # Test the function.
+        for args, expected_result in zip(func_args, expected_results):
+            func_result = func(*args)
+            self.assertTrue(torch.allclose(expected_result, func_result))
+
         return None
