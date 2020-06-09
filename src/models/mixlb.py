@@ -177,10 +177,10 @@ class MIXLB(nn.Module):
     max_comp_value = attr.ib(init=False, default=torch.tensor(1e300))
     # MNL models and generalizations only have probability = 1
     # when the linear predictor = infinity
-    max_prob_value = attr.ib(init=False, default=torch.tensor(1-1e16))
+    max_prob_value = attr.ib(init=False, default=torch.tensor(1-1e-16))
     # MNL models and generalizations only have probability = 0
     # when the linear predictor = -infinity
-    min_prob_value = attr.ib(init=False, default=torch.tensor(1e-300))
+    min_prob_value = attr.ib(init=False, default=torch.tensor(1e-40))
 
     def __attrs_post_init__(self):
         # Make sure that we call the constructor method of nn.Module to
