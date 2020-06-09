@@ -138,9 +138,11 @@ class MixlBTests(unittest.TestCase):
         model = MIXLB()
         model.double()
         # Create the fake arguments
-        fake_utilities =\
-            (torch.from_numpy(np.log(np.arange(start=1, stop=7)))
-                  .double()[:, None])
+        numpy_utilities =\
+            np.log(np.concatenate((np.arange(start=1, stop=7)[:, None],
+                                   2 * np.arange(start=1, stop=7)[:, None]),
+                                  axis=1))
+        fake_utilities = torch.from_numpy(numpy_utilities)
         fake_mapping =\
             torch.sparse.FloatTensor(
                 torch.LongTensor([[0, 1, 2, 3, 4, 5],
@@ -149,12 +151,11 @@ class MixlBTests(unittest.TestCase):
                 torch.Size([6, 2]))
         # Create / note the expected results
         expected_result =\
-            torch.tensor([1 / 6,
-                          2 / 6,
-                          3 / 6,
-                          4 / 15,
-                          5 / 15,
-                          6 / 15], dtype=torch.double)[:, None]
+            torch.tensor(
+                [[1 / 6, 2 / 6, 3 / 6, 4 / 15, 5 / 15, 6 / 15],
+                 [2 / 12, 4 / 12, 6 / 12, 8 / 30, 10 / 30, 12 / 30]],
+                dtype=torch.double)
+        expected_result = torch.transpose(expected_result, 0, 1)
         # Alias the function to be tested
         func = model._calc_probs_per_draw
         # Perform the desired test
