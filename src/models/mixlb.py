@@ -205,13 +205,12 @@ class MIXLB(nn.Module):
             mixing_position_idx =\
                 self.design_info.mixing_to_normal_indices[col_name]
             return self.std_deviations[mixing_position_idx]
-        elif col_name in self.design_info.lognormal_coef_names:
+        if col_name in self.design_info.lognormal_coef_names:
             return self.log_normal_std
-        else:
-            msg =\
-                ('`col_name`: {} MUST be in '.format(col_name) +
-                 '`self.design_info.mixing_variable_names`')
-            raise ValueError(msg)
+        msg =\
+            ('`col_name`: {} MUST be in '.format(col_name) +
+             '`self.design_info.mixing_variable_names`')
+        raise ValueError(msg)
 
     def _get_generated_coefs(self,
                              col_name: str,
@@ -254,7 +253,7 @@ class MIXLB(nn.Module):
             generated_coefs =\
                 self._get_generated_coefs(col_name,
                                           design_column_idx,
-                                          std_deviation,
+                                          current_std_deviation,
                                           current_rvs)
             # Get the 2D array of randomly generated coefficients, across all
             # design matrix rows, and across all draws.
