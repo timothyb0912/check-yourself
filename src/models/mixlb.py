@@ -27,6 +27,8 @@ import torch
 import torch.nn as nn
 # Used to get sparse matrices
 import torch.sparse
+# Used to access convenience functions for torch to numpy optimization
+import botorch.optim.numpy_converter as numpy_converter
 # Use attrs for boilerplate free creation of classes
 import attr
 
@@ -377,3 +379,11 @@ class MIXLB(nn.Module):
                         min=self.min_prob_value,
                         max=self.max_prob_value)
         return long_probs
+
+    def get_params_numpy(self):
+        return numpy_converter.module_to_array(self)
+
+    def set_params_numpy(self, new_param_array):
+        _, property_dict, _ = self.get_params_numpy()
+        numpy_converter.set_params_with_array(
+            self, new_param_array, property_dict)
