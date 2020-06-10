@@ -3,6 +3,7 @@ Tests the MIXLB class to ensure it is constructed correctly and that all
 methods work as expected.
 """
 import unittest
+from unittest.mock import patch
 
 import torch
 import numpy as np
@@ -160,4 +161,54 @@ class MixlBTests(unittest.TestCase):
         func = model._calc_probs_per_draw
         # Perform the desired test
         func_result = func(fake_utilities, fake_mapping)
+        self.assertTrue(torch.allclose(expected_result, func_result))
+
+    @patch.object(MIXLB, 'create_coef_tensor')
+    @patch.object(MIXLB, '_calc_systematic_utilities')
+    @patch.object(MIXLB, '_calc_probs_per_draw')
+    def test_forward_method(self, mock_calc_probs, mock_utilities, mock_coefs):
+        """
+        Ensures that the forward method takes averages of the simulated
+        probabilities, as expected. Other component methods are tested above.
+        """
+        # Create model object and set its dtype to double.
+        model = MIXLB()
+        model.double()
+        # Create fake return values for _calc_probs_per_draw
+        fake_probs_per_draw_np =\
+            (np.repeat(np.arange(start=1, stop=4, dtype=np.float32)[None, :],
+                       3,
+                       axis=0
+                       ) *
+             np.arange(start=1, stop=4, dtype=np.float32)[:, None]
+            )
+        fake_probs_per_draw = torch.from_numpy(fake_probs_per_draw_np).double()
+        fake_systematic_utilities = torch.ones((3, 3), dtype=torch.double)
+        fake_coefs = torch.ones((3, 3, 3), dtype=torch.double)
+        # Mock all the internal method calls except the last since those calls
+        # have their own separate tests.
+        mock_calc_probs.return_value = fake_probs_per_draw
+        mock_utilities.return_value = fake_systematic_utilities
+        mock_coefs.return_value = fake_coefs
+        # Note the expected results
+        expected_result = torch.tensor([2, 4, 6], dtype=torch.double)
+        # Create necessary arguments for model.forward
+        fake_design =\
+            torch.ones(fake_probs_per_draw_np.shape, dtype=torch.double)
+        # corresponds to an identity matrix of size 2x2
+        fake_mapping =\
+            torch.sparse.FloatTensor(torch.LongTensor([[0, 1], [0, 1]]),
+                                     torch.ones(2, dtype=torch.double),
+                                     torch.Size([2, 2]))
+        fake_mapping_2 = fake_mapping.clone()
+        fake_rvs_list =\
+            [torch.zeros(fake_coefs.size()[0],
+                         fake_coefs.size()[2],
+                         dtype=torch.double)
+             for x in range(fake_coefs.size()[1])]
+        # Alias the function to be tested
+        func = model.forward
+        # Perform the desired test
+        func_result =\
+            func(fake_design, fake_mapping, fake_mapping_2, fake_rvs_list)
         self.assertTrue(torch.allclose(expected_result, func_result))
