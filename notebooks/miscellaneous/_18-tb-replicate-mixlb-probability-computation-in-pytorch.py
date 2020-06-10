@@ -91,6 +91,18 @@ mnl_model.fit_mle(np.zeros(len(mnl_names)),
 mnl_model.get_statsmodels_summary()
 # -
 
+# Create a model object mnl with the same basic specification as the MIXL.
+# To be used later to extract the design matrix
+forecast_model =\
+    pl.create_choice_model(data=forecast_df,
+                           alt_id_col='alt_id',
+                           obs_id_col='obs_id',
+                           choice_col='choice',
+                           specification=mnl_spec,
+                           model_type='MNL',
+                           names=mnl_names)
+
+
 # # Initialize the MIXL model
 
 # +
@@ -158,9 +170,15 @@ def create_sparse_mapping_torch(id_array):
 
 
 # +
-# Get the design matrix
+# Get the design matrix from the original and forecast data
 orig_design_matrix_np = mnl_model.design
-orig_design_matrix = torch.tensor(orig_design_matrix_np)
+orig_design_matrix =\
+    torch.tensor(orig_design_matrix_np.astype(np.float32))
+
+
+forecast_design_np = forecast_model.design
+forecast_design_matrix =\
+    torch.tensor(forecast_design_np.astype(np.float32))
 
 # Get the rows_to_obs and rows_to_mixers matrices.
 rows_to_obs =\
@@ -208,3 +226,56 @@ mixl_log_likelihood
 # Compare the MIXL to MNL log-likelihoods
 msg = 'MIXL: {:,.2f}\nMNL:  {:,.2f}'
 print(msg.format(mixl_log_likelihood.item(), mnl_model.llf))
+
+# Compute the gradients
+mixl_log_likelihood.backward()
+# Extract the gradients
+paper_gradients = mixl_model.get_grad_numpy()
+print('Gradients:\n{}'.format(paper_gradients))
+# Zero the gradients as if we were performing optimization
+mixl_model.zero_grad()
+# Extract the probabilities as an array
+mixl_probs_array = mixl_probs.detach().numpy()
+# Make sure none of the predicted probabilities are NaN
+msg = '\nAny NaN probabilities? {}\n'
+print(msg.format(np.isnan(mixl_probs_array).any()))
+# Describe the computed probabilities
+print(pd.Series(mixl_probs_array).describe())
+
+# Compute the forecast probabilities
+forecast_probs =\
+    mixl_model.forward(design_2d=forecast_design_matrix,
+                       rows_to_obs=rows_to_obs,
+                       rows_to_mixers=rows_to_mixers,
+                       normal_rvs_list=normal_rvs_list)
+# Zero the gradients as if we were performing optimization
+mixl_model.zero_grad()
+# Extract the probabilities as an array
+forecast_probs_array = forecast_probs.detach().numpy()
+
+# +
+# Ensure the forecast probabilities for large gas cars are
+# higher than the original probabilities for large gas cars
+large_gas_car_idx = ((car_df['body_type'] == 'regcar') &
+                     (car_df['vehicle_size'] == 3) &
+                     (car_df['fuel_type'] == 'gasoline')).values
+num_stupid_forecasts =\
+    ((forecast_probs_array > mixl_probs_array)[large_gas_car_idx]).sum()
+print("{:,} stupid forecasts".format(num_stupid_forecasts))
+
+# Look at the mixed logits predicted change in the market share
+# of large gas cars after the price increase.
+large_gas_car_share_change =\
+    (((forecast_probs_array[large_gas_car_idx]).sum() -
+     (mixl_probs_array[large_gas_car_idx]).sum()) /
+     (mixl_probs_array[large_gas_car_idx]).sum())
+msg = 'The predicted change in market share of large gas cars is {:.3%}'
+print(msg.format(large_gas_car_share_change))
+# -
+
+# # Findings
+# The most unexpected finding was that none of the parameter gradients was near zero.
+#
+# This implies that the parameters that maximize the simulated log-likelihood function may be far from the current parameters.
+#
+# Who knows if the true maximum likelihood parameters will result in a predictive model with the same qualitative findings.
