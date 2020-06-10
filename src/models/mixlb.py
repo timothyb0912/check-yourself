@@ -21,6 +21,8 @@ To Do:
 # Used for type hinting
 from typing import List
 
+# Numpy is used for numeric computation
+import numpy as np
 # PyTorch is used for numeric computation and automatic differentiation
 import torch
 # Used to access various pytorch utilities
@@ -387,3 +389,10 @@ class MIXLB(nn.Module):
         _, property_dict, _ = self.get_params_numpy()
         numpy_converter.set_params_with_array(
             self, new_param_array, property_dict)
+
+    def get_grad_numpy(self):
+        grad =\
+            np.concatenate(list(x.grad.data.numpy().ravel()
+                                for x in self.parameters()),
+                           axis=0)
+        return grad
