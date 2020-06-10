@@ -210,15 +210,19 @@ class MIXLB(nn.Module):
         Computational the probabilities for `Mixed Logit B`.
         """
         # Get the coefficient tensor for all observations
+        # This will be a 3D tensor
         coefficients =\
             self.create_coef_tensor(design_2d, rows_to_mixers, normal_rvs_list)
-        # Compute the long-format systematic utilities for row and random draw.
+        # Compute the long-format systematic utilities per row and random draw.
+        # This will be a 2D tensor
         systematic_utilities =\
             self._calc_systematic_utilities(design_2d, coefficients)
         # Compute the long-format probabilities for each row and random draw.
+        # This will be a 2D tensor
         probabilities_per_draw =\
             self._calc_probs_per_draw(systematic_utilities, rows_to_obs)
         # Compute the long-format, average probabilities across draws.
+        # This will be a 1D tensor.
         average_probabilities = torch.mean(probabilities_per_draw, 1)
         return average_probabilities
 
