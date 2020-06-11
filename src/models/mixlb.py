@@ -25,7 +25,7 @@ To Do:
   - get_grad_numpy
 """
 # Used for type hinting
-from typing import List
+from typing import Tuple, List, Dict, Optional
 
 # Numpy is used for numeric computation
 import numpy as np
@@ -37,6 +37,7 @@ import torch.nn as nn
 import torch.sparse
 # Used to access convenience functions for torch to numpy optimization
 import botorch.optim.numpy_converter as numpy_converter
+from botorch.optim.numpy_converter import TorchAttr
 # Use attrs for boilerplate free creation of classes
 import attr
 
@@ -364,6 +365,25 @@ class MIXLB(nn.Module):
     def _calc_systematic_utilities(self,
                                    design_2d: torch.Tensor,
                                    coefs: torch.Tensor) -> torch.Tensor:
+        """
+        Calcualtes the "systematic utility", i.e. the deterministic function of
+        model coefficients and the design matrix that the model's probabilities
+        are based on.
+
+        Parameters
+        ----------
+        design_2d : 2D torch.Tensor.
+            Denotes the design matrix whose coefficients are to be computed.
+        coef_tensor : 3D torch.Tensor.
+            Denotes the design coefficients for each decision maker and draw
+            from the random coeffient distributions, in a shape amenable to
+            element-wise multiplication with the design marix.
+
+        Returns
+        -------
+        sys_utilities : 2D torch.Tensor.
+            The systematic utilities for each row and each draw.
+        """
         sys_utilities =\
             torch.sum(design_2d[:, :, None] * coefs, 1, dtype=torch.double)
         safe_sys_utilities =\
@@ -377,6 +397,25 @@ class MIXLB(nn.Module):
             sys_utilities: torch.Tensor,
             rows_to_obs: torch.sparse.FloatTensor
         ) -> torch.Tensor:
+        """
+        Calculates the probabilities for each row's alternative being chosen,
+        given the coefficients for the current individual and random draw.
+
+        Parameters
+        ----------
+        sys_utilities : 2D torch.Tensor.
+            The systematic utilities for each row and each draw.
+        rows_to_obs : 2D torch.sparse.FloatTensor.
+            Denotes the mapping between rows of `design_2d` and the
+            choice observations the probabilities are being computed for.
+
+        Returns
+        -------
+        long_probs : 2D torch.Tensor
+            The probabilities of each row's alternative being chosen for the
+            given choice situation, based on each random draw of model
+            coefficients (one draw per column).
+        """
         # Compute exp(V)
         exponentiated_sys_utilities = torch.exp(sys_utilities)
         # Get denominators to compute probabilities. One row per observation.
@@ -392,15 +431,48 @@ class MIXLB(nn.Module):
                         max=self.max_prob_value)
         return long_probs
 
-    def get_params_numpy(self):
+    def get_params_numpy(self) -> Tuple[
+            np.ndarray, Dict[str, TorchAttr], Optional[np.ndarray]]:
+        """
+        Syntatic sugar for `botorch.optim.numpy_converter.module_to_array`.
+
+        Returns
+        -------
+        param_array : 1D np.ndarray
+            Model parameters values.
+        param_dict : dict.
+            String representations of parameter names are keys, and the values
+            are TorchAttr objects containing shape, dtype, and device
+            information about the correpsonding pytorch tensors.
+        bounds : optional, np.ndarray or None.
+            If at least one parameter has bounds, then these are returned as a
+            2D ndarray representing the bounds for each paramaeter. Otherwise
+            None.
+        """
         return numpy_converter.module_to_array(self)
 
-    def set_params_numpy(self, new_param_array):
+    def set_params_numpy(self, new_param_array: torch.Tensor) -> None:
+        """
+        Sets the model's parameters using the values in `new_param_array`.
+
+        Parameters
+        ----------
+        new_param_array : 1D ndarray.
+            Should have one element for each element of the tensors in
+            `self.parameters`.
+
+        Returns
+        -------
+        None.
+        """
         _, property_dict, _ = self.get_params_numpy()
         numpy_converter.set_params_with_array(
             self, new_param_array, property_dict)
 
-    def get_grad_numpy(self):
+    def get_grad_numpy(self) -> None:
+        """
+        Returns the gradient of the model parameters as a 1D numpy array.
+        """
         grad =\
             np.concatenate(list(x.grad.data.numpy().ravel()
                                 for x in self.parameters()),
