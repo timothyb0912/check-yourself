@@ -212,3 +212,26 @@ class MixlBTests(unittest.TestCase):
         func_result =\
             func(fake_design, fake_mapping, fake_mapping_2, fake_rvs_list)
         self.assertTrue(torch.allclose(expected_result, func_result))
+
+    def test_set_params_numpy(self):
+        """
+        Ensures that we can correctly set the parameters on the module.
+        """
+        # Create model object and set its dtype to double.
+        model = MIXLB()
+        model.double()
+        # Create the new parameters, i.e. the function arguments
+        new_means = 2 * model.means.detach().numpy().astype(np.float32)
+        new_std_dev =\
+            2 * model.std_deviations.detach().numpy().astype(np.float32)
+        new_param_array = np.concatenate((new_means, new_std_dev), axis=0)
+        new_param_array = new_param_array.astype(np.float32)
+        # Create the expected results
+        expected_means = torch.from_numpy(new_means).double()
+        expected_std_dev = torch.from_numpy(new_std_dev).double()
+        # Alias the function being tested
+        func = model.set_params_numpy
+        # Perform the desired test
+        func(new_param_array)
+        self.assertTrue(torch.allclose(expected_means, model.means))
+        self.assertTrue(torch.allclose(expected_std_dev, model.std_deviations))
