@@ -4,9 +4,11 @@ methods work as expected.
 """
 import unittest
 from unittest.mock import patch
+from collections import OrderedDict
 
 import torch
 import numpy as np
+from botorch.optim.numpy_converter import TorchAttr
 
 from src.models.mixlb import MIXLB
 
@@ -235,3 +237,32 @@ class MixlBTests(unittest.TestCase):
         func(new_param_array)
         self.assertTrue(torch.allclose(expected_means, model.means))
         self.assertTrue(torch.allclose(expected_std_dev, model.std_deviations))
+
+    def test_get_params_numpy(self):
+        """
+        Ensures that we get the expected objects back from `get_params_numpy`.
+        """
+        # Create model object and set its dtype to double.
+        model = MIXLB()
+        model.double()
+        # Create the expected results
+        expected_param_array =\
+            np.concatenate((model.means.detach().numpy(),
+                            model.std_deviations.detach().numpy()),
+                           axis=0)
+        expected_param_dict = OrderedDict()
+        expected_param_dict['means'] =\
+            TorchAttr(shape=model.means.shape,
+                      dtype=model.means.dtype,
+                      device=model.means.device)
+        expected_param_dict['std_deviations'] =\
+            TorchAttr(shape=model.std_deviations.shape,
+                      dtype=model.std_deviations.dtype,
+                      device=model.std_deviations.device)
+        # Alas the function being tested
+        func = model.get_params_numpy
+        # Perform the desired test
+        func_result = func()
+        self.assertTrue(np.allclose(expected_param_array, func_result[0]))
+        self.assertEqual(expected_param_dict, func_result[1])
+        self.assertIsNone(func_result[2])
