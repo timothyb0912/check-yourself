@@ -266,3 +266,23 @@ class MixlBTests(unittest.TestCase):
         self.assertTrue(np.allclose(expected_param_array, func_result[0]))
         self.assertEqual(expected_param_dict, func_result[1])
         self.assertIsNone(func_result[2])
+
+    def test_get_grad_numpy(self):
+        """
+        Ensures the expected gradients can be retrieved.
+        """
+        # Create model object and set its dtype to double.
+        model = MIXLB()
+        model.double()
+        # Create a fake loss function
+        fake_loss =\
+            torch.sum(3 * model.means) + torch.sum(0 * model.std_deviations)
+        fake_loss.backward()
+        # Create the expected gradient
+        expected_grad =\
+            np.concatenate((3*np.ones(model.means.size()[0], dtype=np.float32),
+                            np.zeros(model.std_deviations.size()[0],
+                                     dtype=np.float32)))
+        # Perform the desired test
+        func_grad = model.get_grad_numpy()
+        self.assertTrue(np.allclose(expected_grad, func_grad))
