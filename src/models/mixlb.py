@@ -37,6 +37,7 @@ import torch.nn as nn
 import torch.sparse
 # Used to access convenience functions for torch to numpy optimization
 import botorch.optim.numpy_converter as numpy_converter
+import botorch.optim.utils as optim_utils
 from botorch.optim.numpy_converter import TorchAttr
 # Use attrs for boilerplate free creation of classes
 import attr
@@ -207,6 +208,18 @@ class MIXLB(nn.Module):
         self.std_deviations =\
             nn.Parameter(torch.arange(len(self.design_info.normal_coef_names),
                                       dtype=torch.double))
+        # Enforce parameter constraints
+        self.constrain_means()
+
+    def constrain_means(self):
+        """
+        Ensures that we don't compute the gradients for mean parameters that
+        should be constrained to zero.
+        """
+        # Note that parameters 21 (non_ev) and 22 (non_cng) are constrained to
+        # zero because those columns are just for random effects, not means.
+        self.constrained_means =\
+            optim_utils.fix_features(self.means, {21: None, 22: None})
 
     def forward(self,
                 design_2d: torch.Tensor,
@@ -286,7 +299,8 @@ class MIXLB(nn.Module):
             coefficients for each decision maker for each draw.
         """
         generated_coefs =\
-            self.means[design_column_idx] + std_deviation * current_rvs
+            (self.constrained_means[design_column_idx] +
+             std_deviation * current_rvs)
         if col_name in self.design_info.lognormal_coef_names:
             generated_coefs =\
                 torch.exp(torch.clamp(generated_coefs,
@@ -332,7 +346,7 @@ class MIXLB(nn.Module):
         # (design_2d.shape[0], design_2d.shape[1], normal_rvs_list[0].shape[1])
         coef_shape = (design_2d.shape[0], design_2d.shape[1], num_draws)
         coef_tensor =\
-            torch.ones(coef_shape) * self.means[None, :, None]
+            torch.ones(coef_shape) * self.constrained_means[None, :, None]
 
         # Assign the randomly distributed coefficients
         mixing_var_iterable = enumerate(self.design_info.mixing_variable_names)
@@ -465,9 +479,13 @@ class MIXLB(nn.Module):
         -------
         None.
         """
+        # Get the property dictionary for this module
         _, property_dict, _ = self.get_params_numpy()
+        # Set the parameters
         numpy_converter.set_params_with_array(
             self, new_param_array, property_dict)
+        # Constrain the parameters
+        self.constrain_means()
 
     def get_grad_numpy(self) -> None:
         """
