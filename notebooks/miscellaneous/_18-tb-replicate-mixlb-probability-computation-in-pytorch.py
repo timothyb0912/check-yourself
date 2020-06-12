@@ -44,32 +44,7 @@ forecast_df = pd.read_csv("../../data/processed/forecast_car_data.csv")
 # Create specification and name dictionaries
 mnl_spec, mnl_names = OrderedDict(), OrderedDict()
 
-orig_cols_and_display_names =\
-    [("neg_price_over_log_income", 'Neg Price over log(income)'),
-     ('range_over_100', 'Range (units: 100mi)'),
-     ("neg_acceleration_over_10", 'Neg Acceleration (units: 0.1sec)'),
-     ('top_speed_over_100', 'Neg Top speed (units: 0.01mph)'),
-     ("neg_pollution", 'Neg Pollution'),
-     ('vehicle_size_over_10', 'Size'),
-     ('big_enough', 'Big enough'),
-     ('luggage_space', 'Luggage space'),
-     ("neg_tens_of_cents_per_mile", 'Neg Operation cost'),
-     ('station_availability', 'Station availability'),
-     ('sports_utility_vehicle', 'Sports utility vehicle'),
-     ('sports_car', 'Sports car'),
-     ('station_wagon', 'Station wagon'),
-     ('truck', 'Truck'),
-     ('van', 'Van'),
-     ('electric', 'EV'),
-     ('electric_commute_lte_5mi', 'Commute < 5 & EV'),
-     ('electric_and_college', 'College & EV'),
-     ('compressed_natural_gas', 'CNG'),
-     ('methanol', 'Methanol'),
-     ('methanol_and_college', 'College & Methanol'),
-     ('non_ev', 'Non Electric-Vehicle'),
-     ('non_cng', 'Non Compressed Natural Gas')]
-
-for col, display_name in orig_cols_and_display_names:
+for col, display_name in mixlb.DESIGN_TO_DISPLAY_DICT.items():
     mnl_spec[col] = 'all_same'
     mnl_names[col] = display_name
 
@@ -175,7 +150,6 @@ orig_design_matrix_np = mnl_model.design
 orig_design_matrix =\
     torch.tensor(orig_design_matrix_np.astype(np.float32))
 
-
 forecast_design_np = forecast_model.design
 forecast_design_matrix =\
     torch.tensor(forecast_design_np.astype(np.float32))
@@ -185,8 +159,6 @@ rows_to_obs =\
     create_sparse_mapping_torch(car_df[mnl_model.obs_id_col].values)
 rows_to_mixers =\
     create_sparse_mapping_torch(car_df[mnl_model.obs_id_col].values)
-
-
 
 ####
 # Get the normal random variates.
@@ -206,26 +178,44 @@ normal_rvs_list_np =\
                          mixl_model.design_info.num_mixing_vars,
                          seed=601)
 normal_rvs_list = [torch.from_numpy(x).double() for x in normal_rvs_list_np]
+
+# -
+
+# # Create loss function
+
+# +
+# Create target variables for the loss function
+torch_choices =\
+    (torch.from_numpy(mnl_model.choices.astype(np.float32))
+          .double())
+
+# Create the loss function
+def neg_log_loss(probs, targets):
+    log_likelihood =\
+        torch.sum(targets * torch.log(mixl_probs))
+    return -1 * log_likelihood
+
+
 # -
 
 # # Compare MIXL probabilities to MNL
 
+# +
 # Compute the MIXL probabilities
 mixl_probs =\
     mixl_model.forward(design_2d=orig_design_matrix,
                        rows_to_obs=rows_to_obs,
                        rows_to_mixers=rows_to_mixers,
                        normal_rvs_list=normal_rvs_list)
+
 # Compute the MIXL log-likelihood
-torch_choices =\
-    torch.from_numpy(mnl_model.choices.astype(np.float32)).double()
 mixl_log_likelihood =\
-    torch.sum(torch_choices * torch.log(mixl_probs))
-mixl_log_likelihood
+    -1 * neg_log_loss(mixl_probs, torch_choices)
 
 # Compare the MIXL to MNL log-likelihoods
 msg = 'MIXL: {:,.2f}\nMNL:  {:,.2f}'
 print(msg.format(mixl_log_likelihood.item(), mnl_model.llf))
+# -
 
 # Compute the gradients
 mixl_log_likelihood.backward()
@@ -255,7 +245,7 @@ forecast_probs_array = forecast_probs.detach().numpy()
 
 # +
 # Ensure the forecast probabilities for large gas cars are
-# higher than the original probabilities for large gas cars
+# smaller than the original probabilities for large gas cars
 large_gas_car_idx = ((car_df['body_type'] == 'regcar') &
                      (car_df['vehicle_size'] == 3) &
                      (car_df['fuel_type'] == 'gasoline')).values
