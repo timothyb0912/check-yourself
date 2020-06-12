@@ -276,12 +276,15 @@ class MixlBTests(unittest.TestCase):
         model.double()
         # Create a fake loss function
         fake_loss =\
-            torch.sum(3 * model.means) + torch.sum(0 * model.std_deviations)
+            (torch.sum(3 * model.constrained_means) +
+             torch.sum(0 * model.std_deviations))
         fake_loss.backward()
-        # Create the expected gradient
+        # Create the expected gradient. The -2 and +2 accounts for the 2
+        # constrained elements in the mean parameter.
         expected_grad =\
-            np.concatenate((3*np.ones(model.means.size()[0], dtype=np.float32),
-                            np.zeros(model.std_deviations.size()[0],
+            np.concatenate((3*np.ones(model.means.size()[0] - 2,
+                                      dtype=np.float32),
+                            np.zeros(model.std_deviations.size()[0] + 2,
                                      dtype=np.float32)))
         # Perform the desired test
         func_grad = model.get_grad_numpy()
