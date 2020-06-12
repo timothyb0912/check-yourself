@@ -13,16 +13,6 @@ To Do:
     of standard deviation parameters
   - Should have a second validation function that makes sure all values
     in these two lists are < the length of parameter means.
-- Add unit tests for MIXLB methods:
-  - get_params_numpy
-  - set_params_numpy
-  - get_grad_numpy
-- Add docstrings for MIXLB methods:
-  - _calc_systematic_utilities
-  - _calc_probs_per_draw
-  - get_params_numpy
-  - set_params_numpy
-  - get_grad_numpy
 """
 # Used for type hinting
 from typing import Tuple, List, Dict, Optional
