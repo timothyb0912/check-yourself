@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Contains the utilities for use with PyTorch.
+Common utilities for PyTorch models.
 """
 import numpy as np
 import torch
