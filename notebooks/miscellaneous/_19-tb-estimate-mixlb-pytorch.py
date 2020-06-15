@@ -320,7 +320,9 @@ final_mixlb_hessian_core.shape
 # # Save the results
 
 # Save the final parameters
-estimates_df.final.to_csv(OUTPUT_PARAM_PATH, index=False)
+estimates_df.final.to_csv(OUTPUT_PARAM_PATH,
+                          index=False,
+                          header=False)
 # Save the final gradient
 (pd.Series(optimization_results['jac'])
    .to_csv(OUTPUT_GRADIENT_PATH, index=False))
