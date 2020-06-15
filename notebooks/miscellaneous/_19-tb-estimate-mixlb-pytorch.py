@@ -78,7 +78,7 @@ for col, display_name in mixlb.DESIGN_TO_DISPLAY_DICT.items():
     mnl_names[col] = display_name
 
 # +
-# Instantiate a MNL with the same design matirx as the MIXL.
+# Instantiate a MNL with the same design matrix as the MIXL.
 mnl_model =\
     pl.create_choice_model(data=car_df,
                            alt_id_col=ALT_ID_COLUMN,
