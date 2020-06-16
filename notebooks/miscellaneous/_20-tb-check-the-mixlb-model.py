@@ -75,6 +75,8 @@ import pylogit.mixed_logit_calcs as mlc
 from scipy.stats import multivariate_normal
 from tqdm.notebook import tqdm
 
+import seaborn as sbn
+
 # Local modules
 sys.path.insert(0, '../../')
 import src.models.mixlb as mixlb
@@ -613,14 +615,140 @@ for fuel in fuel_types:
 
 # ## 5. Simulated CDFs
 
+col_of_interest = 'price_over_log_income'
+for fuel in fuel_types:
+    filter_row = car_df[FUEL_COLUMN] == fuel
+    current_title =\
+        'CDF of {} for {} vehicles'.format(col_of_interest, fuel)
+    current_path_base =\
+        'simulated_cdf_{}_fuel_eq_{}.jpg'.format(col_of_interest, fuel)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
 
+    viz.plot_simulated_cdfs(sim_choices,
+                            car_df,
+                            filter_row,
+                            col_of_interest,
+                            CHOICE_COLUMN,
+                            title=current_title,
+                            figsize=(10, 6),
+                            label='Simulated',
+                            output_file=current_path)
+
+col_of_interest = 'price_over_log_income'
+for body in body_types:
+    filter_row = car_df[BODY_COLUMN] == body
+    current_title =\
+        'CDF of {} for {} vehicles'.format(col_of_interest, body)
+    current_path_base =\
+        'simulated_cdf_{}_body_eq_{}.jpg'.format(col_of_interest, body)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
+
+    viz.plot_simulated_cdfs(sim_choices,
+                            car_df,
+                            filter_row,
+                            col_of_interest,
+                            CHOICE_COLUMN,
+                            title=current_title,
+                            figsize=(10, 6),
+                            label='Simulated',
+                            output_file=current_path)
 
 # ## 6. Simulated KDEs
 
+col_of_interest = 'price_over_log_income'
+for fuel in fuel_types:
+    filter_row = car_df[FUEL_COLUMN] == fuel
+    current_title =\
+        'KDE of {} for {} vehicles'.format(col_of_interest, fuel)
+    current_path_base =\
+        'simulated_cdf_{}_fuel_eq_{}.jpg'.format(col_of_interest, fuel)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
 
+    viz.plot_simulated_kdes(sim_choices,
+                            car_df,
+                            filter_row,
+                            col_of_interest,
+                            CHOICE_COLUMN,
+                            title=current_title,
+                            figsize=(10, 6),
+                            label='Simulated',
+                            output_file=current_path)
+
+col_of_interest = 'price_over_log_income'
+for body in body_types:
+    filter_row = car_df[BODY_COLUMN] == body
+    current_title =\
+        'KDE of {} for {} vehicles'.format(col_of_interest, body)
+    current_path_base =\
+        'simulated_cdf_{}_body_eq_{}.jpg'.format(col_of_interest, body)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
+
+    viz.plot_simulated_kdes(sim_choices,
+                            car_df,
+                            filter_row,
+                            col_of_interest,
+                            CHOICE_COLUMN,
+                            title=current_title,
+                            figsize=(10, 6),
+                            label='Simulated',
+                            output_file=current_path)
 
 # ## 7. Simulated Histogram
 
+col_of_interest = 'cents_per_mile'
+for body in body_types:
+    filter_row = ((car_df[BODY_COLUMN] == body) &
+                  (car_df[col_of_interest] == 2))
+    current_title =\
+        'Num Observations with Cents per Mile = 2 for Body = {}'
 
+    current_path_base =\
+        'simulated_cdf_{}_eq_2_body_eq_{}.jpg'.format(col_of_interest, body)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
+
+    viz.plot_discrete_scalars(
+        car_df,
+        None,
+        sim_choices,
+        'cents_per_mile',
+        filter_row,
+        torch_choices.numpy(),
+        title=current_title.format(body),
+        filter_name=body,
+        post_color=sbn.color_palette('colorblind')[0],
+        figsize=(10, 6),
+        legend_loc='upper left',
+        output_file=str(current_path))
+
+col_of_interest = 'cents_per_mile'
+for fuel in fuel_types:
+    filter_row = ((car_df[FUEL_COLUMN] == fuel) &
+                  (car_df[col_of_interest] == 2))
+    current_title =\
+        'Num Observations with Cents per Mile = 2 for Fuel = {}'
+
+    current_path_base =\
+        'simulated_cdf_{}_eq_2_fuel_eq_{}.jpg'.format(col_of_interest, fuel)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
+
+    viz.plot_discrete_scalars(
+        car_df,
+        None,
+        sim_choices,
+        'cents_per_mile',
+        filter_row,
+        torch_choices.numpy(),
+        title=current_title.format(body),
+        filter_name=body,
+        post_color=sbn.color_palette('colorblind')[0],
+        figsize=(10, 6),
+        legend_loc='upper left',
+        output_file=str(current_path))
 
 # # Conclusions
