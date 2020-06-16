@@ -155,7 +155,7 @@ def plot_simulated_cdfs(sim_y,
         filtered_orig_df = filtered_orig_df.iloc[selected_rows, :]
 
     sample_iterator =\
-        progress(range(filtered_sim_y.shape[1]), desc='Calculating KDEs')
+        progress(range(filtered_sim_y.shape[1]), desc='Calculating CDFs')
 
     # Get the original values
     orig_choices = filtered_orig_df[choice_col].values
