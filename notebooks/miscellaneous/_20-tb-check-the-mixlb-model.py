@@ -230,7 +230,7 @@ sim_choices =\
 # # Produce desired plots
 
 # Create the directory for the model checking plots
-pathlib.Path(FIGURE_DIR).mkdir(parents=True, exist_ok=True) 
+pathlib.Path(FIGURE_DIR).mkdir(parents=True, exist_ok=True)
 
 # ## 1. Predictive performance plots
 
@@ -266,7 +266,7 @@ viz.plot_continous_scalars(sim_log_likelihoods,
                            obs_log_likelihood,
                            output_file=overall_log_likelihood_path,
                           )
-        
+
 # -
 
 # ### 1b. Overall mean-square-error plot
@@ -309,26 +309,26 @@ for body in body_types:
     current_probs = estimated_probs.numpy()[filter_idx]
     current_choices = mnl_model.choices[filter_idx]
     current_sim_choices = sim_choices[filter_idx[0], :]
-    
+
     # Compute the observed log-likelihood for filtered obs
     current_log_likelihood =\
         np.dot(current_choices, np.log(current_probs))
-    
+
     # Compute the simulated log-likelihoods for the filtered obs
     current_sim_log_likelihoods =\
         viz.compute_predictive_log_likelihoods(
             current_sim_choices, current_probs)
-    
+
     # Create the label for the current plot
     current_label_base = 'Log-likelihood for Body Type == {}'
     current_label = current_label_base.format(body)
-    
+
     # Create the path to where this plot should be stored
     plot_file_suffix =\
         'log_likelihood_plot_body_is_{}.jpg'.format(body)
     current_plot_path =\
         pathlib.Path(FIGURE_DIR) / plot_file_suffix
-    
+
     # Create the current plot
     viz.plot_continous_scalars(current_sim_log_likelihoods,
                                current_log_likelihood,
@@ -345,26 +345,26 @@ for fuel in fuel_types:
     current_probs = estimated_probs.numpy()[filter_idx]
     current_choices = mnl_model.choices[filter_idx]
     current_sim_choices = sim_choices[filter_idx[0], :]
-    
+
     # Compute the observed log-likelihood for filtered obs
     current_log_likelihood =\
         np.dot(current_choices, np.log(current_probs))
-    
+
     # Compute the simulated log-likelihoods for the filtered obs
     current_sim_log_likelihoods =\
         viz.compute_predictive_log_likelihoods(
             current_sim_choices, current_probs)
-    
+
     # Create the label for the current plot
     current_label_base = 'Log-likelihood for Fuel Type == {}'
     current_label = current_label_base.format(fuel)
-    
+
     # Create the path to where this plot should be stored
     plot_file_suffix =\
         'log_likelihood_plot_fuel_is_{}.jpg'.format(fuel)
     current_plot_path =\
         pathlib.Path(FIGURE_DIR) / plot_file_suffix
-    
+
     # Create the current plot
     viz.plot_continous_scalars(current_sim_log_likelihoods,
                                current_log_likelihood,
@@ -383,27 +383,27 @@ for body in body_types:
     current_probs = estimated_probs.numpy()[filter_idx]
     current_choices = mnl_model.choices[filter_idx]
     current_sim_choices = sim_choices[filter_idx[0], :]
-    
+
     # Compute the observed mean-square-error for filtered obs
     current_square_error = (current_choices - current_probs)**2
     current_mean_square_error =\
         current_square_error[np.where(current_choices)].mean()
-    
+
     # Compute the simulated mean-square-errors for the filtered obs
     current_sim_mean_square_errors =\
         viz.compute_predictive_mse(
             current_sim_choices, current_probs)
-    
+
     # Create the label for the current plot
     current_label_base = 'Mean-Square-Error for Body Type == {}'
     current_label = current_label_base.format(body)
-    
+
     # Create the path to where this plot should be stored
     plot_file_suffix =\
         'mean_square_error_plot_body_is_{}.jpg'.format(body)
     current_plot_path =\
         pathlib.Path(FIGURE_DIR) / plot_file_suffix
-    
+
     # Create the current plot
     viz.plot_continous_scalars(current_sim_mean_square_errors,
                                current_mean_square_error,
@@ -420,27 +420,27 @@ for fuel in fuel_types:
     current_probs = estimated_probs.numpy()[filter_idx]
     current_choices = mnl_model.choices[filter_idx]
     current_sim_choices = sim_choices[filter_idx[0], :]
-    
+
     # Compute the observed mean-square-error for filtered obs
     current_square_error = (current_choices - current_probs)**2
     current_mean_square_error =\
         current_square_error[np.where(current_choices)].mean()
-    
+
     # Compute the simulated mean-square-errors for the filtered obs
     current_sim_mean_square_errors =\
         viz.compute_predictive_mse(
             current_sim_choices, current_probs)
-    
+
     # Create the label for the current plot
     current_label_base = 'Mean-Square-Error for Fuel Type == {}'
     current_label = current_label_base.format(fuel)
-    
+
     # Create the path to where this plot should be stored
     plot_file_suffix =\
         'mean_square_error_plot_body_is_{}.jpg'.format(fuel)
     current_plot_path =\
         pathlib.Path(FIGURE_DIR) / plot_file_suffix
-    
+
     # Create the current plot
     viz.plot_continous_scalars(current_sim_mean_square_errors,
                                current_mean_square_error,
@@ -475,13 +475,139 @@ viz.plot_simulated_market_shares(car_df.body_type.values,
 #
 # ### 3a. Discretely-smoothed reliability plots
 
+for body in body_types:
+    filter_idx = np.where((car_df[BODY_COLUMN] == body).values)
+    current_probs = estimated_probs.numpy()[filter_idx]
+    current_choices = torch_choices.numpy()[filter_idx]
+    current_sim_y = sim_choices[filter_idx[0], :]
+    current_line_label = 'Observed vs Predicted ({})'.format(body)
+    current_sim_label = 'Simulated vs Predicted ({})'.format(body)
 
+    current_sim_color = '#a6bddb'
+    current_obs_color = '#045a8d'
+
+    current_plot_fname = 'reliability_plot_body_is_{}.jpg'.format(body)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_plot_fname
+
+    reliability_path = None
+    viz.plot_smoothed_reliability(
+        current_probs,
+        current_choices,
+        sim_y=current_sim_y,
+        line_label=current_line_label,
+        line_color=current_obs_color,
+        sim_label=current_sim_label,
+        sim_line_color=current_sim_color,
+        figsize=(10, 6),
+        ref_line=True,
+        output_file=current_path)
+
+for fuel in fuel_types:
+    filter_idx = np.where((car_df[FUEL_COLUMN] == fuel).values)
+    current_probs = estimated_probs.numpy()[filter_idx]
+    current_choices = torch_choices.numpy()[filter_idx]
+    current_sim_y = sim_choices[filter_idx[0], :]
+    current_line_label = 'Observed vs Predicted ({})'.format(fuel)
+    current_sim_label = 'Simulated vs Predicted ({})'.format(fuel)
+
+    current_sim_color = '#a6bddb'
+    current_obs_color = '#045a8d'
+
+    current_plot_fname = 'reliability_plot_fuel_is_{}.jpg'.format(fuel)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_plot_fname
+
+    reliability_path = None
+    viz.plot_smoothed_reliability(
+        current_probs,
+        current_choices,
+        sim_y=current_sim_y,
+        line_label=current_line_label,
+        line_color=current_obs_color,
+        sim_label=current_sim_label,
+        sim_line_color=current_sim_color,
+        figsize=(10, 6),
+        ref_line=True,
+        output_file=current_path)
 
 # ### 3b. Continuously-smoothed reliability plots
 
 
 
 # ## 4. Marginal Model Plots
+#
+# ### 4a. Discretely-smoothed marginal model plots
+
+col_of_interest = 'price_over_log_income'
+for body in body_types:
+    selection_array = (car_df[BODY_COLUMN] == body).values
+    selection_idx = np.where(selection_array)
+
+    current_probs = posterior_probs_array[selection_idx[0], :]
+    current_y = torch_choices.numpy()[selection_idx]
+    current_x = car_df.loc[selection_idx[0], col_of_interest].values
+    current_sim_y = sim_choices[selection_idx[0], :]
+
+    current_y_label = 'Observed P(Y={})'.format(body)
+    current_prob_label = 'Predicted P(Y={})'.format(body)
+    current_sim_label = 'Simulated P(Y={})'.format(body)
+    current_x_label =\
+        'Binned, Mean {} Price / ln(income)'.format(body)
+
+    current_path_base =\
+        'marginal_model_plot_body_eq_{}.jpg'.format(body)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
+
+    viz.plot_smoothed_marginal(current_sim_y,
+                               current_y,
+                               current_x,
+                               probs=current_probs,
+                               partitions=10,
+                               y_label=current_y_label,
+                               prob_label=current_prob_label,
+                               sim_label=current_sim_label,
+                               x_label=current_x_label,
+                               alpha=0.5,
+                               figsize=(10, 6),
+                               output_file=current_path)
+
+col_of_interest = 'price_over_log_income'
+for fuel in fuel_types:
+    selection_array = (car_df[FUEL_COLUMN] == fuel).values
+    selection_idx = np.where(selection_array)
+
+    current_probs = posterior_probs_array[selection_idx[0], :]
+    current_y = torch_choices.numpy()[selection_idx]
+    current_x = car_df.loc[selection_idx[0], col_of_interest].values
+    current_sim_y = sim_choices[selection_idx[0], :]
+
+    current_y_label = 'Observed P(Y={})'.format(fuel)
+    current_prob_label = 'Predicted P(Y={})'.format(fuel)
+    current_sim_label = 'Simulated P(Y={})'.format(fuel)
+    current_x_label =\
+        'Binned, Mean {} Price / ln(income)'.format(fuel)
+
+    current_path_base =\
+        'marginal_model_plot_fuel_eq_{}.jpg'.format(fuel)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
+
+    viz.plot_smoothed_marginal(current_sim_y,
+                               current_y,
+                               current_x,
+                               probs=current_probs,
+                               partitions=10,
+                               y_label=current_y_label,
+                               prob_label=current_prob_label,
+                               sim_label=current_sim_label,
+                               x_label=current_x_label,
+                               alpha=0.5,
+                               figsize=(10, 6),
+                               output_file=current_path)
+
+# ### 4b. Continuously-smoothed marginal model plots
 
 
 
