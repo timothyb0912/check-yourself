@@ -64,14 +64,12 @@ SEED = 1131
 import sys
 import time
 import pathlib
-from collections import OrderedDict
 
 # Third-party modules
 import torch
 import numpy as np
 import pandas as pd
 import pylogit as pl
-import pylogit.mixed_logit_calcs as mlc
 from scipy.stats import multivariate_normal
 from tqdm.notebook import tqdm
 
@@ -79,89 +77,47 @@ import seaborn as sbn
 
 # Local modules
 sys.path.insert(0, '../../')
+import src.viz as viz
 import src.models.mixlb as mixlb
 import src.models.torch_utils as utils
-import src.viz as viz
+from src.models.model_inputs import InputMixlB
 # -
 
 # # Load needed data
 
 # +
+# Get the dataframe of data for the model
 car_df = pd.read_csv(DATA_PATH)
+
+# Get the esimated parameters and hessian of the model
 estimated_params =\
     np.loadtxt(PARAM_PATH, delimiter=',', skiprows=1)
 estimated_hessian = np.loadtxt(HESSIAN_PATH, delimiter=',')
 
 # Get the observation_ids
 observation_ids = car_df[OBS_ID_COLUMN].values
+
+# Get the choices from the dataset
+choice_array = car_df[CHOICE_COLUMN].values
 # -
 
 # # Load pytorch model and needed objects
 
+# +
 # Instantiate the model
 mixl_model = mixlb.MIXLB()
 
-# +
-####
 # Create the various input objects needed for mixlb model.
-# These should be packaged together and stored as a class
-# Should be as simple as InputMixlB.from_df(car_df)
-####
-# Create specification and name dictionaries
-mnl_spec, mnl_names = OrderedDict(), OrderedDict()
-
-for col, display_name in mixlb.DESIGN_TO_DISPLAY_DICT.items():
-    mnl_spec[col] = 'all_same'
-    mnl_names[col] = display_name
-
-# Instantiate a MNL with the same design matrix as the MIXL.
-mnl_model =\
-    pl.create_choice_model(data=car_df,
-                           alt_id_col=ALT_ID_COLUMN,
-                           obs_id_col=OBS_ID_COLUMN,
-                           choice_col=CHOICE_COLUMN,
-                           specification=mnl_spec,
-                           model_type='MNL',
-                           names=mnl_names)
+mixlb_input = InputMixlB.from_df(car_df)
 
 # Create target variables for the loss function
 torch_choices =\
-    torch.from_numpy(mnl_model.choices.astype(np.float32)).double()
-
-# Get the design matrix from the original and forecast data
-orig_design_matrix_np = mnl_model.design
-orig_design_matrix =\
-    torch.tensor(orig_design_matrix_np.astype(np.float32))
-
-# Get the rows_to_obs and rows_to_mixers matrices.
-rows_to_obs =\
-    utils.create_sparse_mapping_torch(observation_ids)
-rows_to_mixers =\
-    utils.create_sparse_mapping_torch(observation_ids)
-
-####
-# Get the normal random variates.
-####
-# Determine the number of draws being used for the mixed logit
-num_draws = NUM_MIXING_DRAWS
-# Determine the number of observations with randomly distributed
-# sensitivities
-num_mixers = car_df.obs_id.unique().size
-
-# Get the random draws needed for the draws of each coeffcient
-# Each element in the list will be a 2D ndarray of shape
-# num_mixers by num_draws
-normal_rvs_list_np =\
-    mlc.get_normal_draws(num_mixers,
-                         num_draws,
-                         mixl_model.design_info.num_mixing_vars,
-                         seed=MIXL_DRAW_SEED)
-normal_rvs_list = [torch.from_numpy(x).double() for x in normal_rvs_list_np]
-
+    torch.from_numpy(choice_array.astype(np.float32)).double()
 # -
 
 # # Create sampling distribution
 
+# +
 # Extract the portion of the hessian pertaining to estimated
 # parameters, excluding rows and columns for the fixed parameters
 desired_rows =\
@@ -169,14 +125,18 @@ desired_rows =\
 hessian_core =\
     estimated_hessian[np.ix_(desired_rows, desired_rows)]
 
+# Get the asymptotic covariance matrix.
 # Note we don't multiply by -1 because this is the hessian
 # of the log-loss as opposed to the log-likelihood. The
 # -1 is already included in the log-loss definition.
 asymptotic_cov = np.linalg.inv(hessian_core)
 
+# Create the asymptotic sampling distribution,
+# accounting for the parameters fixed to zero
 asymptotic_sampling_dist =\
     multivariate_normal(mean=estimated_params[desired_rows],
                         cov=asymptotic_cov)
+# -
 
 # # Sample $\left( y, \theta \right)$ from posterior distribution
 
@@ -199,7 +159,7 @@ posterior_samples =\
 # +
 # Initialize the tensor of posterior probabilities
 posterior_probs_tensor =\
-    torch.empty((mnl_model.design.shape[0], NUM_SAMPLES),
+    torch.empty((mixlb_input.design.shape[0], NUM_SAMPLES),
                 dtype=torch.double)
 
 # Compute the probabilities for each posterior sample of parameters
@@ -209,10 +169,10 @@ with torch.no_grad():
         mixl_model.set_params_numpy(posterior_samples[idx, :])
         # Compute probabilities and assign them to the array
         posterior_probs_tensor[:, idx] =\
-            mixl_model(design_2d=orig_design_matrix,
-                       rows_to_obs=rows_to_obs,
-                       rows_to_mixers=rows_to_mixers,
-                       normal_rvs_list=normal_rvs_list)
+            mixl_model(design_2d=mixlb_input.design,
+                       rows_to_obs=mixlb_input.obs_mapping,
+                       rows_to_mixers=mixlb_input.mixing_mapping,
+                       normal_rvs_list=mixlb_input.normal_rvs)
 
 
 # +
@@ -249,10 +209,10 @@ with torch.no_grad():
     mixl_model.set_params_numpy(estimated_params)
     # Compute the estimated probabilities
     estimated_probs =\
-        mixl_model(design_2d=orig_design_matrix,
-                   rows_to_obs=rows_to_obs,
-                   rows_to_mixers=rows_to_mixers,
-                   normal_rvs_list=normal_rvs_list)
+        mixl_model(design_2d=mixlb_input.design,
+                   rows_to_obs=mixlb_input.obs_mapping,
+                   rows_to_mixers=mixlb_input.mixing_mapping,
+                   normal_rvs_list=mixlb_input.normal_rvs)
     # Compute the observed log-likelihood
     obs_log_likelihood =\
         (-1 * utils.log_loss(estimated_probs, torch_choices)).item()
@@ -279,9 +239,9 @@ overall_mse_path =\
     pathlib.Path(FIGURE_DIR) / 'overall_mean_square_error.jpg'
 
 # Compute the observed mean-square-error values
-obs_squared_errors = (mnl_model.choices - estimated_probs.numpy())**2
+obs_squared_errors = (choice_array - estimated_probs.numpy())**2
 obs_mean_square_error =\
-    obs_squared_errors[np.where(mnl_model.choices)].mean()
+    obs_squared_errors[np.where(choice_array)].mean()
 
 # Compute the simulated mean-square-errorvalues
 sim_mean_square_error =\
@@ -309,7 +269,7 @@ for body in body_types:
     filter_idx = np.where(filter_array)
 
     current_probs = estimated_probs.numpy()[filter_idx]
-    current_choices = mnl_model.choices[filter_idx]
+    current_choices = choice_array[filter_idx]
     current_sim_choices = sim_choices[filter_idx[0], :]
 
     # Compute the observed log-likelihood for filtered obs
@@ -345,7 +305,7 @@ for fuel in fuel_types:
     filter_idx = np.where(filter_array)
 
     current_probs = estimated_probs.numpy()[filter_idx]
-    current_choices = mnl_model.choices[filter_idx]
+    current_choices = choice_array[filter_idx]
     current_sim_choices = sim_choices[filter_idx[0], :]
 
     # Compute the observed log-likelihood for filtered obs
@@ -383,7 +343,7 @@ for body in body_types:
     filter_idx = np.where(filter_array)
 
     current_probs = estimated_probs.numpy()[filter_idx]
-    current_choices = mnl_model.choices[filter_idx]
+    current_choices = choice_array[filter_idx]
     current_sim_choices = sim_choices[filter_idx[0], :]
 
     # Compute the observed mean-square-error for filtered obs
@@ -420,7 +380,7 @@ for fuel in fuel_types:
     filter_idx = np.where(filter_array)
 
     current_probs = estimated_probs.numpy()[filter_idx]
-    current_choices = mnl_model.choices[filter_idx]
+    current_choices = choice_array[filter_idx]
     current_sim_choices = sim_choices[filter_idx[0], :]
 
     # Compute the observed mean-square-error for filtered obs
@@ -535,7 +495,67 @@ for fuel in fuel_types:
 
 # ### 3b. Continuously-smoothed reliability plots
 
+for body in body_types:
+    filter_idx = np.where((car_df[BODY_COLUMN] == body).values)
+    current_probs = estimated_probs.numpy()[filter_idx]
+    current_choices = torch_choices.numpy()[filter_idx]
+    current_sim_y = sim_choices[filter_idx[0], :]
+    current_line_label = 'Observed vs Predicted ({})'.format(body)
+    current_sim_label = 'Simulated vs Predicted ({})'.format(body)
 
+    current_sim_color = '#a6bddb'
+    current_obs_color = '#045a8d'
+
+    current_plot_fname = 'smoothed_reliability_body_is_{}.jpg'.format(body)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_plot_fname
+
+    reliability_path = None
+    viz.plot_smoothed_reliability(
+        current_probs,
+        current_choices,
+        sim_y=current_sim_y,
+        discrete=False,
+        n_estimators=100,
+        min_samples_leaf=100,
+        line_label=current_line_label,
+        line_color=current_obs_color,
+        sim_label=current_sim_label,
+        sim_line_color=current_sim_color,
+        figsize=(10, 6),
+        ref_line=True,
+        output_file=current_path)
+
+for fuel in fuel_types:
+    filter_idx = np.where((car_df[FUEL_COLUMN] == fuel).values)
+    current_probs = estimated_probs.numpy()[filter_idx]
+    current_choices = torch_choices.numpy()[filter_idx]
+    current_sim_y = sim_choices[filter_idx[0], :]
+    current_line_label = 'Observed vs Predicted ({})'.format(fuel)
+    current_sim_label = 'Simulated vs Predicted ({})'.format(fuel)
+
+    current_sim_color = '#a6bddb'
+    current_obs_color = '#045a8d'
+
+    current_plot_fname = 'smoothed_reliability_fuel_is_{}.jpg'.format(fuel)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_plot_fname
+
+    reliability_path = None
+    viz.plot_smoothed_reliability(
+        current_probs,
+        current_choices,
+        sim_y=current_sim_y,
+        discrete=False,
+        n_estimators=100,
+        min_samples_leaf=100,
+        line_label=current_line_label,
+        line_color=current_obs_color,
+        sim_label=current_sim_label,
+        sim_line_color=current_sim_color,
+        figsize=(10, 6),
+        ref_line=True,
+        output_file=current_path)
 
 # ## 4. Marginal Model Plots
 #
@@ -611,7 +631,77 @@ for fuel in fuel_types:
 
 # ### 4b. Continuously-smoothed marginal model plots
 
+col_of_interest = 'price_over_log_income'
+for body in body_types:
+    selection_array = (car_df[BODY_COLUMN] == body).values
+    selection_idx = np.where(selection_array)
 
+    current_probs = posterior_probs_array[selection_idx[0], :]
+    current_y = torch_choices.numpy()[selection_idx]
+    current_x = car_df.loc[selection_idx[0], col_of_interest].values
+    current_sim_y = sim_choices[selection_idx[0], :]
+
+    current_y_label = 'Observed P(Y={})'.format(body)
+    current_prob_label = 'Predicted P(Y={})'.format(body)
+    current_sim_label = 'Simulated P(Y={})'.format(body)
+    current_x_label =\
+        'Binned, Mean {} Price / ln(income)'.format(body)
+
+    current_path_base =\
+        'smoothed_marginal_plot_body_eq_{}.jpg'.format(body)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
+
+    viz.plot_smoothed_marginal(current_sim_y,
+                               current_y,
+                               current_x,
+                               probs=current_probs,
+                               discrete=False,
+                               n_estimators=100,
+                               min_samples_leaf=100,
+                               y_label=current_y_label,
+                               prob_label=current_prob_label,
+                               sim_label=current_sim_label,
+                               x_label=current_x_label,
+                               alpha=0.5,
+                               figsize=(10, 6),
+                               output_file=current_path)
+
+col_of_interest = 'price_over_log_income'
+for fuel in fuel_types:
+    selection_array = (car_df[FUEL_COLUMN] == fuel).values
+    selection_idx = np.where(selection_array)
+
+    current_probs = posterior_probs_array[selection_idx[0], :]
+    current_y = torch_choices.numpy()[selection_idx]
+    current_x = car_df.loc[selection_idx[0], col_of_interest].values
+    current_sim_y = sim_choices[selection_idx[0], :]
+
+    current_y_label = 'Observed P(Y={})'.format(fuel)
+    current_prob_label = 'Predicted P(Y={})'.format(fuel)
+    current_sim_label = 'Simulated P(Y={})'.format(fuel)
+    current_x_label =\
+        'Binned, Mean {} Price / ln(income)'.format(fuel)
+
+    current_path_base =\
+        'smoothed_marginal_plot_fuel_eq_{}.jpg'.format(fuel)
+    current_path =\
+        pathlib.Path(FIGURE_DIR) / current_path_base
+
+    viz.plot_smoothed_marginal(current_sim_y,
+                               current_y,
+                               current_x,
+                               probs=current_probs,
+                               discrete=False,
+                               n_estimators=100,
+                               min_samples_leaf=100,
+                               y_label=current_y_label,
+                               prob_label=current_prob_label,
+                               sim_label=current_sim_label,
+                               x_label=current_x_label,
+                               alpha=0.5,
+                               figsize=(10, 6),
+                               output_file=current_path)
 
 # ## 5. Simulated CDFs
 
@@ -750,5 +840,3 @@ for fuel in fuel_types:
         figsize=(10, 6),
         legend_loc='upper left',
         output_file=str(current_path))
-
-# # Conclusions
