@@ -57,7 +57,7 @@ def log_loss(probs: torch.Tensor,
         The probabilities of each row's alternative being chosen for the
         given choice situation.
     targets : 1D torch.Tensor.
-        A Tensor of zeros and ones indicating which row as chosen for each
+        A Tensor of zeros and ones indicating which row was chosen for each
         choice situation. Should have the same size as `probs`.
 
     Returns
