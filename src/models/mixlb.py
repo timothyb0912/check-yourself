@@ -164,19 +164,11 @@ class MIXLB(nn.Module):
     log_normal_std = attr.ib(init=False, default=torch.tensor(0.8326))
 
     ####
-    # Generically needed constants for the model
-    ####
-    num_alternatives = attr.ib(init=False, default=torch.tensor(6))
-    num_design_columns = attr.ib(init=False, default=torch.tensor(23))
-
-    ####
     # Needed constants for numerical stability
     ####
     # Minimum and maximum value that should be exponentiated
     min_exponent_val = attr.ib(init=False, default=torch.tensor(-700))
     max_exponent_val = attr.ib(init=False, default=torch.tensor(700))
-    # Maximum computational value before overflow is likely.
-    max_comp_value = attr.ib(init=False, default=torch.tensor(1e300))
     # MNL models and generalizations only have probability = 1
     # when the linear predictor = infinity
     max_prob_value = attr.ib(init=False, default=torch.tensor(1-1e-16))
@@ -217,7 +209,30 @@ class MIXLB(nn.Module):
                 rows_to_mixers: torch.sparse.FloatTensor,
                 normal_rvs_list: List[torch.Tensor]) -> torch.Tensor:
         """
-        Computational the probabilities for `Mixed Logit B`.
+        Compute the probabilities for `Mixed Logit B`.
+
+        Parameters
+        ----------
+        design_2d : 2D torch.Tensor.
+            Denotes the design matrix whose coefficients are to be computed.
+        rows_to_obs : 2D torch.sparse.FloatTensor.
+            Denotes the mapping between rows of `design_2d` and the
+            choice observations the probabilities are being computed for.
+        rows_to_mixers : 2D torch.sparse.FloatTensor.
+            Denotes the mapping between rows of `design_2d` and the
+            decision-makers the coefficients are randomly distributed over.
+        normal_rvs_list : list of 2D torch.Tensor.
+            Should have length `self.design_info.num_mixing_vars`. Each element
+            of the list should be of shape `(rows_to_mixers.size()[1],
+            num_draws)`. Each element should represent a draw from a standard
+            normal distribution.
+
+        Returns
+        -------
+        average_probabilities : 1D torch.Tensor
+            Denotes the average of the probabilities for each alternative for
+            each choice situation, across all random draws of the model
+            coefficients.
         """
         # Get the coefficient tensor for all observations
         # This will be a 3D tensor
