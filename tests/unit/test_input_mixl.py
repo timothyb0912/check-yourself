@@ -6,7 +6,7 @@ import unittest
 
 import numpy as np
 
-from src.models.model_inputs import InputMixl
+from src.models.base_model_inputs import InputMixl
 
 class InputMixlTests(unittest.TestCase):
     """
