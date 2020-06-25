@@ -45,6 +45,7 @@ CHOICE_COLUMN = 'choice'
 import sys
 import time
 from collections import OrderedDict
+from typing import Callable
 
 # Third-party modules
 import torch
@@ -61,99 +62,60 @@ sys.path.insert(0, '../../')
 import src.models.mixlb as mixlb
 import src.models.torch_utils as utils
 from src.hessian import hessian
+from src.models.model_inputs import InputMixlB
 # -
 # # Load needed data
 
 car_df = pd.read_csv(DATA_PATH)
 
-# # Create the corresponding MNL model
-# Create a MNL model that has the same design matrix as Mixed Logit B.
-
-# +
-# Create specification and name dictionaries
-mnl_spec, mnl_names = OrderedDict(), OrderedDict()
-
-for col, display_name in mixlb.DESIGN_TO_DISPLAY_DICT.items():
-    mnl_spec[col] = 'all_same'
-    mnl_names[col] = display_name
-
-# +
-# Instantiate a MNL with the same design matrix as the MIXL.
-mnl_model =\
-    pl.create_choice_model(data=car_df,
-                           alt_id_col=ALT_ID_COLUMN,
-                           obs_id_col=OBS_ID_COLUMN,
-                           choice_col=CHOICE_COLUMN,
-                           specification=mnl_spec,
-                           model_type='MNL',
-                           names=mnl_names)
-
-# Estimate the model to note reproduction of
-# Brownstone & Train's MNL
-mnl_model.fit_mle(np.zeros(len(mnl_names)),
-                  constrained_pos=[-2, -1])
-
-# Look at the estimation results
-mnl_model.get_statsmodels_summary()
-# -
-
-# # Initialize the MIXL model
+# # Initialize the MIXL model and inputs
 
 # Instantiate the model
 mixl_model = mixlb.MIXLB()
 
-# # Create objects for probability and loss calculations
+# Create the various input objects needed for mixlb model.
+mixlb_input = InputMixlB.from_df(car_df)
 
-# +
 # Create target variables for the loss function
 torch_choices =\
-    torch.from_numpy(mnl_model.choices.astype(np.float32)).double()
+    torch.from_numpy(car_df[CHOICE_COLUMN].values.astype(np.float32)).double()
 
-# Get the design matrix from the original and forecast data
-orig_design_matrix_np = mnl_model.design
-orig_design_matrix =\
-    torch.tensor(orig_design_matrix_np.astype(np.float32))
-
-# Get the rows_to_obs and rows_to_mixers matrices.
-rows_to_obs =\
-    utils.create_sparse_mapping_torch(car_df[mnl_model.obs_id_col].values)
-rows_to_mixers =\
-    utils.create_sparse_mapping_torch(car_df[mnl_model.obs_id_col].values)
-
-####
-# Get the normal random variates.
-####
-# Determine the number of draws being used for the mixed logit
-num_draws = 250
-# Determine the number of observations with randomly distributed
-# sensitivities
-num_mixers = car_df.obs_id.unique().size
-
-# Get the random draws needed for the draws of each coeffcient
-# Each element in the list will be a 2D ndarray of shape
-# num_mixers by num_draws
-normal_rvs_list_np =\
-    mlc.get_normal_draws(num_mixers,
-                         num_draws,
-                         mixl_model.design_info.num_mixing_vars,
-                         seed=601)
-normal_rvs_list = [torch.from_numpy(x).double() for x in normal_rvs_list_np]
-
-# -
 
 # # Create the objective function
 # Create the function to be used by `scipy.optimize.minimize`.
 
 # +
 def make_scipy_closure(
-        design,
-        obs_mapping,
-        mixers_mapping,
-        normal_draws,
-        targets,
-        model,
-        loss_func,
-        ):
+        input_obj: InputMixlB,
+        targets: torch.Tensor,
+        model: mixlb.MIXLB,
+        loss_func: Callable,
+        ) -> Callable:
+    """
+    Creates the optimization function for use with scipy.optimize.minimize.
+
+    Parameters
+    ----------
+    input_obj : InputMixlB.
+        Container of the inputs for the model's probability function.
+    targets : 1D torch.Tensor
+        A Tensor of zeros and ones indicating which row was chosen for each
+        choice situation. Should have the same size as
+        `(input_obj.design.size()[0],)`.
+    model : MIXLB.
+        Should have a forward object that computes the probabilities of
+        the given discrete choice model.
+    loss_func : callable.
+        Should take as inputs, `model` outputs and `targets`. Should return
+        the value of the loss as well as the gradient of the loss.
+
+    Returns
+    -------
+    optimization_func : callable
+        Takes a set of parameters as a 1D numpy array and returns the
+        corresponding loss function value and gradient corresponding to the
+        passed parameters.
+    """
     def closure(params):
         # params -> loss, grad
         # Load the parameters onto the model
@@ -162,26 +124,23 @@ def make_scipy_closure(
         model.zero_grad()
         # Calculate the probabilities
         probabilities =\
-            model(design_2d=design,
-                  rows_to_obs=obs_mapping,
-                  rows_to_mixers=mixers_mapping,
-                  normal_rvs_list=normal_draws)
+            model(design_2d=input_obj.design,
+                  rows_to_obs=input_obj.obs_mapping,
+                  rows_to_mixers=input_obj.mixing_mapping,
+                  normal_rvs_list=input_obj.normal_rvs)
         # Calculate the loss
         loss = loss_func(probabilities, targets)
-        # Compute the gradients
+        # Compute the gradient.
         loss.backward()
         # Get the gradient.
         grad = model.get_grad_numpy()
-        # Get a value of the loss to pass around.
+        # Get a float version of the loss for scipy.
         loss_val = loss.item()
         return loss_val, grad
     return closure
 
 scipy_objective =\
-    make_scipy_closure(orig_design_matrix,
-                       rows_to_obs,
-                       rows_to_mixers,
-                       normal_rvs_list,
+    make_scipy_closure(mixlb_input,
                        torch_choices,
                        mixl_model,
                        utils.log_loss)
@@ -236,18 +195,18 @@ mixl_model.set_params_numpy(paper_estimates_array)
 with torch.no_grad():
     # Compute the MIXL probabilities
     initial_mixl_probs =\
-        mixl_model.forward(design_2d=orig_design_matrix,
-                           rows_to_obs=rows_to_obs,
-                           rows_to_mixers=rows_to_mixers,
-                           normal_rvs_list=normal_rvs_list)
+        mixl_model.forward(design_2d=mixlb_input.design,
+                           rows_to_obs=mixlb_input.obs_mapping,
+                           rows_to_mixers=mixlb_input.mixing_mapping,
+                           normal_rvs_list=mixlb_input.normal_rvs)
 
     # Compute the MIXL log-likelihood
     initial_mixl_log_likelihood =\
         -1 * utils.log_loss(initial_mixl_probs, torch_choices)
 
     # Compare the MIXL to MNL log-likelihoods
-    msg = 'Initial MIXL: {:,.2f}\nMNL:          {:,.2f}'
-    print(msg.format(initial_mixl_log_likelihood.item(), mnl_model.llf))
+    msg = 'Initial MIXL: {:,.2f}'
+    print(msg.format(initial_mixl_log_likelihood.item()))
 
 # +
 # Perform the optimization
@@ -286,10 +245,10 @@ mixl_model.zero_grad()
 
 # Compute final probabilities
 final_mixl_probs =\
-    mixl_model(design_2d=orig_design_matrix,
-               rows_to_obs=rows_to_obs,
-               rows_to_mixers=rows_to_mixers,
-               normal_rvs_list=normal_rvs_list)
+    mixl_model(design_2d=mixlb_input.design,
+               rows_to_obs=mixlb_input.obs_mapping,
+               rows_to_mixers=mixlb_input.mixing_mapping,
+               normal_rvs_list=mixlb_input.normal_rvs)
 
 # Compute final loss
 final_log_likelihood =\
