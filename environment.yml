@@ -7,7 +7,14 @@ channels:
   - anaconda
   - defaults
 dependencies:
-  - statsmodels=0.11.1
+  - nomkl=3.0
+  - numpy=1.18
+  - scipy=1.4
+  - numexpr=2.7
+  - scikit-learn=0.22
+  - botorch=0.2.2
+  - gpytorch=1.0
+  - statsmodels=0.11
   - snakemake=5.18.1
   - pytest=5.4.2
   - coverage=5.1
@@ -23,11 +30,9 @@ dependencies:
   - python=3.7
   - python-dotenv=0.13.0
   - pylogit=0.2.2
-  - pytorch=1.5
-  - botorch=0.2.5
-  - gpytorch=1.1.1
   - seaborn=0.10.1
-  - scikit-learn=0.22.1
   - ipywidgets=7.5.1
-  - torchvision=0.6.0
+  - pip:
+    - torch
+    - torchvision
 prefix: /Users/tbrathwaite/anaconda2/envs/checkYourself
