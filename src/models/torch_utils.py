@@ -21,7 +21,7 @@ def create_sparse_mapping_torch(id_array: np.ndarray) -> sparse.FloatTensor:
 
     Returns
     -------
-    mappipng : torch.sparse.FloatTensor.
+    mapping : torch.sparse.FloatTensor.
         Sparse matrix containing only zeros and ones. Each row pertains to an
         element in `id_array`, and each column pertains to a unique value in
         `id_array`, in order of appearance.
