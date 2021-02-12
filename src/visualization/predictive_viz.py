@@ -17,6 +17,9 @@ import statsmodels.api as sm
 # used to plot empirical CDFs
 import statsmodels.tools as sm_tools
 import statsmodels.distributions as sm_dist
+# Use the following to have python2 and python3 compatiblity
+from future.utils import string_types
+from past.builtins import xrange
 # Use set_trace to set debugging break points
 from pdb import set_trace as bp
 
@@ -592,7 +595,7 @@ def plot_simulated_kde_traces(sim_y,
     axis.set_ylabel('Density', fontsize=fontsize, rotation=0, labelpad=40)
     # Create the title
     if title is not None and title != '':
-        if not isinstance(title, basestring):
+        if not isinstance(title, string_types):
             msg = "`title` MUST be a string."
             raise TypeError(msg)
         axis.set_title(title, fontsize=fontsize)
@@ -744,7 +747,7 @@ def plot_lowess_smooth(explanatory_array,
 
     # Set the title if desired
     if title is not None:
-        if not isinstance(title, basestring):
+        if not isinstance(title, string_types):
             msg = "`title` MUST be a string."
             raise TypeError(msg)
         ax.set_title(title, fontsize=fontsize)
@@ -758,7 +761,7 @@ def plot_lowess_smooth(explanatory_array,
         ax.legend(loc=loc, title=legend_title, frameon=True, framealpha=1.0)
 
     # Save the plot if desired
-    if isinstance(output_file, basestring) and output_file != '':
+    if isinstance(output_file, string_types) and output_file != '':
         # Make the plot have a tight_layout
         fig.tight_layout()
         # Save the plot
@@ -1106,13 +1109,13 @@ def plot_categorical_predictive_densities(df,
 
         # Create the title
         if title is not None and title != '':
-            if not isinstance(title, basestring):
+            if not isinstance(title, string_types):
                 msg = "`title` MUST be a string."
                 raise TypeError(msg)
             ax.set_title(title.format(num))
 
         # Save the plot if desired
-        if isinstance(output_file, basestring) and output_file != '':
+        if isinstance(output_file, string_types) and output_file != '':
             # Make the plot have a tight_layout
             fig.tight_layout()
             # Save the plot
@@ -1297,7 +1300,7 @@ def plot_simulated_cdf_traces(sim_y,
             return choice_array
 
     # Determine if col_to_plot is a string or an array
-    col_to_plot_is_string = isinstance(col_to_plot, basestring)
+    col_to_plot_is_string = isinstance(col_to_plot, string_types)
     col_to_plot_is_array = isinstance(col_to_plot, np.ndarray)
 
     # Get the original values
@@ -1412,7 +1415,7 @@ def plot_simulated_cdf_traces(sim_y,
 
     # Create the title
     if title is not None and title != '':
-        if not isinstance(title, basestring):
+        if not isinstance(title, string_types):
             msg = "`title` MUST be a string."
             raise TypeError(msg)
         axis.set_title(title)
